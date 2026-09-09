@@ -54,10 +54,6 @@ QString captureTabLabel(CaptureKind kind) {
   switch (kind) {
   case CaptureKind::Region:
     return QStringLiteral("REGION");
-  case CaptureKind::Scroll:
-    return QStringLiteral("SCROLLING REGION");
-  case CaptureKind::Window:
-    return QStringLiteral("WINDOW");
   case CaptureKind::Fullscreen:
     return QStringLiteral("FULLSCREEN");
   }
@@ -73,12 +69,9 @@ QFont captureTabFont() {
 }
 QColor captureTabAccent(CaptureKind kind) {
   switch (kind) {
-  case CaptureKind::Window:
-    return QColor(QStringLiteral("#ffd60a"));
   case CaptureKind::Fullscreen:
     return QColor(QStringLiteral("#0a84ff"));
   case CaptureKind::Region:
-  case CaptureKind::Scroll:
     break;
   }
   return QColor(QStringLiteral("#30d158"));
@@ -86,9 +79,8 @@ QColor captureTabAccent(CaptureKind kind) {
 } // namespace
 
 QVector<CaptureTab> captureTabLayout(const QRect &bounds) {
-  static const CaptureKind order[] = {CaptureKind::Region, CaptureKind::Window,
-                                      CaptureKind::Scroll,
-                                      CaptureKind::Fullscreen};
+  static const CaptureKind order[] = {CaptureKind::Region,
+                                       CaptureKind::Fullscreen};
   const QFontMetricsF metrics(captureTabFont());
   constexpr qreal kPad = 14.0;
   constexpr qreal kGap = 2.0;

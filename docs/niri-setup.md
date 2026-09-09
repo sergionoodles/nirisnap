@@ -19,8 +19,7 @@ niri validate
 ```
 
 Account for existing screenshot shortcuts and shortcuts reserved by your
-Niri config. In particular, do not assume Omasnap's Super+Arrow
-window-navigation shortcuts will reach the application.
+Niri config.
 
 ## Screenshot exclusion (optional)
 
@@ -48,5 +47,4 @@ and [layer rules](https://niri-wm.github.io/niri/Configuration%3A-Layer-Rules.ht
 - `niri` on `PATH` while Nirisnap runs (`niri msg -j focused-output`,
   `outputs`, `workspaces`).
 - `zwlr_screencopy_manager_v1` (Niri 26.04 exposes v3), `wl_shm`,
-  `wl_output`, `zwlr_layer_shell_v1`, and for auto-scroll experiments
-  `zwlr_virtual_pointer_manager_v1`.
+  `wl_output`, and `zwlr_layer_shell_v1`.

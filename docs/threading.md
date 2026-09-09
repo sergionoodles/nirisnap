@@ -26,7 +26,7 @@ reading its corresponding worker:
 
 | Watcher | Worker does |
 |---|---|
-| `captureWatcher_` | Reads window/monitor pixels via `captureMonitorPixels` |
+| `captureWatcher_` | Reads monitor pixels via `captureMonitorPixels` |
 | `ocrWatcher_` | Renders the OCR crop and runs `tesseract` |
 | `finishWatcher_` | Renders the export, encodes PNG, does the clipboard round trip, moves the file |
 | `snapshotWatcher_` | Writes the crash-recovery working snapshot + operation log |
@@ -35,24 +35,16 @@ reading its corresponding worker:
 | `backdropWatcher_` | Decodes an optional user-supplied backdrop image |
 | `highlighterProbeWatcher_` | Detects a nearby screenshot text row for highlighter Snap mode |
 
-`src/scroll-capture.cpp` follows the same rule with a plain `QFuture<void>`:
-the capture loop (grab → crop → classify → accumulate) runs on a worker
-thread so the overlay keeps painting the live page and the mode pills while
-frames come in, however slow the compositor's damage-driven capture is.
-
 ## What this buys, concretely
 
 - **OCR**: whole-image or drag-region text recognition spawns `tesseract`
   and renders a full-resolution crop, both off the UI thread, with a
   scanning animation over the region so the wait reads as progress rather
   than a hang.
-- **Export**: a stitched scroll capture can be 25,000 pixels tall. PNG
+- **Export**: a very tall capture can be 25,000 pixels tall. PNG
   encoding that image, plus the `wl-copy`/`wl-paste` verification round
   trip, is seconds of work — all in `finishWatcher_`'s worker. See
   `CaptureEditor::finish()`.
-- **Scroll capture**: reading the screen back after every wheel tick, at
-  whatever cadence the page's animation settles at, never stalls painting
-  the overlay's own chrome.
 
 ## Pointer motion on large monitors
 
@@ -89,7 +81,7 @@ purpose every time, since nothing enforces it automatically.
 
 - **`CaptureEditor::reopenRecent()`** loaded a shelved capture's full-resolution
   source with a synchronous `QImage::load()` directly in the shelf's click
-  handler — for a stitched scroll capture, tens of megapixels, on the UI
+  handler — for a very tall capture, tens of megapixels, on the UI
   thread. Fixed to decode on the worker pool (`reopenWatcher_`), the same
   shape as every other watcher above.
 - **`CaptureEditor::pinSnapshot()`** rendered the pin image on a worker but
@@ -97,22 +89,6 @@ purpose every time, since nothing enforces it automatically.
   back on the UI thread, after the watcher had already proven the async
   shape was easy to reach. Fixed to do the encode+write inside the same
   worker lambda as the render, so the slot only launches the pin process.
-
-## A known violation, not yet fixed
-
-`spawnScrollInjector()` (`src/scroll-inject.cpp`) is called synchronously
-from the UI thread when auto-scroll starts or Continues
-(`ScrollCapturePanel::startCapture`/`continueCapture` in
-`src/scroll-capture.cpp`), and it deliberately probes the injection
-backends before returning — including Wayland registry round-trips for the virtual-pointer backend. On Niri there is no natural-scroll query; the injector defaults to the virtual pointer without a blocking policy probe. That's a real, if brief and infrequent (once per
-auto-scroll start, not per frame), block on the UI thread. It hasn't been
-moved to a worker because the auto-scroll injector is the most delicate,
-most recently hardened part of the codebase and depends on live
-Niri/Wayland state that the offline smoke suite cannot exercise —
-changing its threading needs a live re-verification pass, not just a
-green `make check`. Fix it with the same worker/watcher shape above
-(`QtConcurrent::run` wrapping the whole call, a small watcher applying the
-result) when you can test it live.
 
 ## Adding new work
 

@@ -92,9 +92,9 @@ Niri.
 | `src/capture.cpp/.hpp` | Capture, render pipeline, output (clipboard/save/notify), source+JSON operation-log persistence, config loading glue |
 | `src/editor.cpp/.hpp` | Annotation editor: tools, vector layers, operation-log undo/redo, the select↔edit phase machine, export |
 | `src/overlay-chrome.cpp/.hpp` | Shared chrome every overlay wears: the capture-kind tab strip, hotkey legend, status pill |
-| `src/scroll-capture.cpp/.hpp` | The scroll-capture panel: region-live page, manual/auto mode, grips, stitched result (manual first; auto gated) |
+| `src/stitch.cpp/.hpp`, `src/auto-capture.cpp/.hpp`, `src/scroll-inject.cpp/.hpp` | Offline frame classification, stitching, and scroll injection helpers (no overlay UI) |
 | `src/scroll-inject.cpp/.hpp` | Auto-scroll wheel injection (`zwlr_virtual_pointer_v1`; uinput disabled until a Niri scroll policy is queryable) |
-| `src/auto-capture.cpp/.hpp`, `src/stitch.cpp/.hpp` | Pure, offline-testable frame classification and stitching |
+
 | `src/stitch-replay.cpp` | Standalone tool: replay a dumped frame directory through the stitcher with no compositor |
 | `src/surface-capture.cpp` | In-process output capture via `wlr-screencopy` (SHM-only, cursor-free, y-invert aware) |
 | `src/cut.cpp/.hpp` | Cut-band tool: remove a strip and collapse the gap |
@@ -109,7 +109,7 @@ Niri.
 | `docs/` | Longer writeups of the principles above — read before changing behavior they cover |
 | `docs/capability-report.md` | Verified local session: Wayland globals, Niri version, outputs |
 | `docs/niri-setup.md` | Niri binds example (`niri validate`), layer rules, screenshot exclusion |
-| `docs/window-capture.md` | Window-capture product decision and clipboard constraints |
+
 | `CMakeLists.txt` | Build definition; **the version lives here** (`project(nirisnap VERSION ...)`) |
 
 ## Build and verify

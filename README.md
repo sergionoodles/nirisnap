@@ -15,11 +15,11 @@ resizable vector layers and preserves the monitor's native pixels on scaled disp
 
 ## Features
 
-- Freeform region and full-focused-monitor capture modes (window and scrolling capture are explicitly unavailable in this Niri build — see Platform scope).
+- Freeform region and full-focused-monitor capture modes.
 - A pointer-side readout that turns any drag into a ruler: the pointer position
   while the crosshair is idle, then the frame size in native export pixels while a
-  region, a hovered window, or a crop handle is being sized.
-- Region capture crops the focused-output frame at native resolution. Draw a region around a window for a window-like shot; automatic window selection is unavailable (see docs/window-capture.md).
+  region or a crop handle is being sized.
+- Region capture crops the focused-output frame at native resolution.
 - Select/move/resize layers, mouse-wheel scaling, and eight external recropping handles.
 - Draw, type, resize, or carry a layer past the screenshot edge to grow the canvas.
   Framed growth is the default; `G` cycles to tight Overflow growth (only the
@@ -60,10 +60,7 @@ resizable vector layers and preserves the monitor's native pixels on scaled disp
 
 The supported target is **Wayland + Niri**. Monitor discovery uses `niri msg -j`
 (`focused-output`/`outputs`/`workspaces`); pixel capture uses `wlr-screencopy`
-(SHM-only, cursor-free) before the layer maps. Window capture is unavailable:
-Niri IPC reports tiled windows without screen coordinates (see
-`docs/window-capture.md`). Scrolling capture is unavailable in this build;
-manual region + the inherited stitcher remain for future work.
+(SHM-only, cursor-free) before the layer maps.
 
 Runtime commands used by the application:
 
@@ -151,27 +148,13 @@ Explicit starting modes:
 
 ```bash
 nirisnap --capture-region
-nirisnap --capture-window  # unavailable on Niri: draws region instead
 nirisnap --capture-fullscreen
 ```
-
-Scroll capture stitches a region that is taller (or wider) than the screen:
-
-```bash
-nirisnap --scroll  # unavailable on Niri yet
-```
-
-Drag a region, then pick a direction: **Scroll ↓ / →** scrolls the page
-yourself while nirisnap captures each step, and **Auto ↓ / →** scrolls it for
-you, one acknowledged notch at a time, stopping when the page stops moving.
-The frames are aligned and stitched into one image and opened in the editor,
-where `Ctrl`+wheel zooms and the wheel scrolls it.
 
 Compatibility positional names are also accepted:
 
 ```bash
 nirisnap region
-nirisnap windows  # unavailable on Niri
 nirisnap fullscreen
 nirisnap smart       # maps to region selection
 ```
@@ -180,7 +163,7 @@ These options choose what is initially selected; the editor still controls wheth
 result is copied, saved, or both.
 
 Quick output skips the annotation editor. Add `--copy` to copy only, `--save` to save
-only, or both flags to copy and save. Region and window captures output after selection;
+only, or both flags to copy and save. Region captures output after selection;
 fullscreen captures output immediately. Quick output cannot be combined with `--file`,
 `--clipboard`, or `--pin`.
 
@@ -307,26 +290,14 @@ Install the corresponding Tesseract language data before adding a language to
 ### Capture selection
 
 Tabs across the top of the overlay switch the capture kind: **Region**,
-**Window**, **Scrolling Region**, **Fullscreen**. All four are modes of the
-same overlay. Scrolling Region selects exactly like Region; once the region is
-drawn, the page inside it goes live and the scroll controls appear in place.
-Region and Scrolling Region frame the same rectangle, so switching between the
-two keeps it: the frame drawn for a scrolling capture is captured as a region,
-and a region just captured frames the scroll panel. Window and Fullscreen pick
-an area of their own, so switching to either starts over.
+**Fullscreen**. Region draws a freeform selection; Fullscreen acts at once.
 The tabs stay up in the editor too: a tab there drops the edit and goes back to
-capturing in that mode, and a small **Scroll capture** button under the image
-turns the drawn region into a scrolling capture. The keys below do the same
-without reaching for the pointer.
+capturing in that mode.
 
 | Input | Action |
 |---|---|
 | Drag | Select a region, with its native pixel size shown at the pointer |
-| `Space` | Step through the capture-kind tabs (Region, Window, Scrolling Region) |
-| `S` | Toggle scrolling-region mode |
 | `R` | Restore the last region drawn this session (same monitor) |
-| `SUPER + Arrow` | Move among windows in window mode |
-| `Enter` | Capture the highlighted window |
 | `Ctrl+A` | Select the full focused monitor (the Fullscreen tab) |
 | Hover the right-edge stack | Fan out the five most recent captures; click one to reopen it |
 | `Esc` | Dismiss (while selecting; in the editor, `Esc` returns to Select and a second `Esc` closes) |
@@ -418,7 +389,7 @@ edges. After the canvas grows, those crop handles remain on the original source 
 make check
 ```
 
-The smoke executable exercises region/window/fullscreen startup modes, capture selection,
+The smoke executable exercises region/fullscreen startup modes, capture selection,
 working-document persistence (source plus op-log JSON), annotation tools, undo/redo
 replay, vector movement and scaling, text editing, OCR, native-DPI output,
 endpoint-only line selection, annotation-driven canvas growth and clipping policies,

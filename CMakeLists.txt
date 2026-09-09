@@ -65,8 +65,6 @@ add_library(nirisnap-core STATIC
   src/text-band.hpp
   src/auto-capture.cpp
   src/auto-capture.hpp
-  src/scroll-capture.cpp
-  src/scroll-capture.hpp
   src/scroll-inject.cpp
   src/scroll-inject.hpp
   src/startup-timing.cpp

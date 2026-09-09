@@ -76,8 +76,7 @@ struct NiriWorkspace {
 /// coordinates (`tile_pos_in_workspace_view` is null in practice), so this
 /// intentionally returns an empty list. The editor must not synthesize window
 /// rectangles from column/row indices, widths, gaps, or scroll offsets.
-/// Floating-window pixel positions exist but are insufficient for exact
-/// Nirisnap-style hover/crop parity; see docs/window-capture.md. The function
-/// exists so call sites keep their shape while window capture is unresolved.
+/// The function exists so call sites keep their shape and the app-id
+/// heuristic for filenames keeps working.
 [[nodiscard]] QVector<WindowTarget>
 parseNiriWindowsPlaceholder(const QByteArray &json, const MonitorInfo &monitor);

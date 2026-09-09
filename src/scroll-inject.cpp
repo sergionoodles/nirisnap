@@ -31,7 +31,7 @@ using stitch::CaptureHandshake;
 /// Time between injecting a wheel group and announcing its rendered frame:
 /// at 150 ms a 60 Hz client gets ~9 frames to paint while the handshake still
 /// prevents the next wheel event racing the screenshot.
-// The overlay waits for the page to settle itself (see scroll-capture.cpp);
+// The overlay waits for the page to settle itself;
 // this only keeps the tick and the ready announcement from racing.
 constexpr int kScrollSettleMs = 30;
 constexpr int kInputRegionSettleMs = 50;

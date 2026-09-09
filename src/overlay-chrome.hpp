@@ -1,7 +1,6 @@
 /** @fileoverview The chrome every full-screen overlay wears: the mode badge at
  *  the top, the hotkey guide in the corner, and the status pill along the
- *  bottom. Capture and scroll capture are the same tool in two moods, so they
- *  are drawn by the same code rather than by two that drift apart. */
+ *  bottom. */
 #pragma once
 
 #include <QColor>
@@ -24,7 +23,7 @@ class QPainter;
 /// The application-wide default font, installed by main() before any widget
 /// exists: the same face and 11 pt size the gtk3 platform theme used to
 /// supply, so text drawn with a painter's or widget's default font (pin
-/// tips, scroll-panel buttons) does not shrink or change family now that
+/// tips, overlay buttons) does not shrink or change family now that
 /// the external desktop theme is bypassed.
 [[nodiscard]] QFont chromeDefaultFont();
 /// Monospace counterpart for numeric readouts: pinned stack headed by the
@@ -32,10 +31,9 @@ class QPainter;
 /// alias happens to resolve to on a given install.
 [[nodiscard]] QFont chromeMonoFont(int pixelSize, bool bold = false);
 
-/// The kinds of capture the tab strip across the top offers, on every
-/// overlay. Region and Window are modes of the area overlay, Scroll is the
-/// scroll overlay, and Fullscreen acts at once.
-enum class CaptureKind { Region, Scroll, Window, Fullscreen };
+/// The kinds of capture the tab strip across the top offers. Region is
+/// freeform selection; Fullscreen acts at once.
+enum class CaptureKind { Region, Fullscreen };
 struct CaptureTab {
   CaptureKind kind;
   QRectF rect;

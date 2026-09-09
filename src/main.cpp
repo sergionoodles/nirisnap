@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
   // face.
   QApplication::setFont(chromeDefaultFont());
 
-  // A stitched scroll capture (or any tall pinned image) exceeds Qt's default
+  // A very tall capture (or any tall pinned image) exceeds Qt's default
   // 256 MB image-decode allocation limit; lift it so --file/--pin can open it.
   QImageReader::setAllocationLimit(0);
   PosixSignalNotifier signalNotifier(&application);
@@ -144,14 +144,10 @@ int main(int argc, char **argv) {
   const QCommandLineOption fullscreenOption(
       QStringLiteral("capture-fullscreen"),
       QStringLiteral("Start with the entire focused monitor selected."));
-  const QCommandLineOption windowOption(
-      {QStringLiteral("capture-window"), QStringLiteral("capture-windows")},
-      QStringLiteral("Window selection (unavailable on Niri; use a region)."));
   const QCommandLineOption regionOption(
       QStringLiteral("capture-region"),
       QStringLiteral("Start in freeform region selection mode (default)."));
   parser.addOption(fullscreenOption);
-  parser.addOption(windowOption);
   parser.addOption(regionOption);
   const QCommandLineOption copyOption(
       QStringLiteral("copy"),
@@ -177,13 +173,9 @@ int main(int argc, char **argv) {
       QStringLiteral("Show an image as a pinned always-visible layer."),
       QStringLiteral("path"));
   parser.addOption(pinOption);
-  const QCommandLineOption scrollOption(
-      QStringLiteral("scroll"),
-      QStringLiteral("Scrolling capture (unavailable on Niri yet)."));
-  parser.addOption(scrollOption);
   parser.addPositionalArgument(
       QStringLiteral("target"),
-      QStringLiteral("Capture mode (smart, region, windows, fullscreen) or the "
+      QStringLiteral("Capture mode (smart, region, fullscreen) or the "
                      "path of an image file to edit."),
       QStringLiteral("[target]"));
   parser.process(application);
@@ -201,15 +193,8 @@ int main(int argc, char **argv) {
     quickOutputMode = QuickOutputMode::Save;
 
   CaptureEditor::CaptureMode captureMode = CaptureEditor::CaptureMode::Region;
-  int requestedModes = parser.isSet(fullscreenOption) +
-                       parser.isSet(windowOption) + parser.isSet(regionOption) +
-                       parser.isSet(scrollOption);
-  if (parser.isSet(windowOption) || parser.isSet(scrollOption)) {
-    qCritical().noquote()
-        << QStringLiteral("Window and scrolling capture are unavailable on "
-                          "Niri yet: draw a region around the window instead.");
-    return 2;
-  }
+  int requestedModes =
+      parser.isSet(fullscreenOption) + parser.isSet(regionOption);
   if (parser.isSet(fullscreenOption))
     captureMode = CaptureEditor::CaptureMode::Fullscreen;
 
@@ -239,16 +224,8 @@ int main(int argc, char **argv) {
       const QString mode = positional.first();
       if (mode == QStringLiteral("fullscreen"))
         captureMode = CaptureEditor::CaptureMode::Fullscreen;
-      else if (mode == QStringLiteral("windows") ||
-               mode == QStringLiteral("window") ||
-               mode == QStringLiteral("scroll")) {
-        qCritical().noquote()
-            << QStringLiteral("Window and scrolling capture are unavailable "
-                              "on Niri yet: draw a region around the window "
-                              "instead.");
-        return 2;
-      } else if (mode == QStringLiteral("smart") ||
-                 mode == QStringLiteral("region"))
+      else if (mode == QStringLiteral("smart") ||
+               mode == QStringLiteral("region"))
         captureMode = CaptureEditor::CaptureMode::Region;
       else {
         qCritical().noquote()

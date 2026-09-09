@@ -18,21 +18,15 @@ ports needing compositor-specific paths to forks rather than backends.
   with `layout.tile_pos_in_workspace_view = null` and column/row indices
   only. Summing widths to infer screen positions is unreliable (scrolling
   offsets, gaps, tabs, animations, partial visibility), so Nirisnap offers
-  region/full-monitor capture and leaves window capture to the explicit
-  milestone in `docs/window-capture.md`. See `src/niri-ipc.cpp`
+  region/full-monitor capture only. See `src/niri-ipc.cpp`
   (`parseNiriWindowsPlaceholder`).
 - Pixel capture uses `zwlr_screencopy_manager_v1` (SHM-only, cursor-free,
   `y_invert`-aware) in `src/surface-capture.cpp`. Niri does not implement
   `ext-image-copy-capture`; that protocol is not a fallback here.
-- Scroll capture's auto-scroll uses `zwlr_virtual_pointer_v1` bound to the
-  target output (`src/scroll-inject.cpp`). There is no Niri natural-scroll
-  query, so uinput pre-compensation is disabled: the virtual pointer is the
-  default until its Niri behavior is proven.
-- The keyboard-grab dance in the scroll and area overlays originated as a
+- The keyboard-grab dance in the area overlay originated as a
   Hyprland workaround (an exclusive keyboard grab on a layer surface pinned
   pointer focus even over an input-region hole). It is retained pending live
-  Niri validation — see `src/scroll-capture.cpp` — not asserted as a Niri
-  rule.
+  Niri validation, not asserted as a Niri rule.
 - Notifications use best-effort `notify-send` after successful output, with
   no click-to-reopen action yet (see `src/capture.cpp`). Notification
   failure never fails a save.

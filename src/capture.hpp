@@ -182,7 +182,7 @@ captureCanvasRect(const QSizeF &sourceFrameSize,
 /** Captures the named output through wlr-screencopy. */
 /** A live native capture session for one output (`MonitorInfo::name`, e.g.
  *  "DP-3") over its own Wayland connection: open once, then grab frames
- *  repeatedly into the same buffer: a scroll capture takes many per second
+ *  repeatedly into the same buffer: live output capture takes many per second
  *  and must not pay a process spawn or a session handshake for each. Frames
  *  are captured without the cursor and returned upright in output pixels. */
 class OutputCapture {

@@ -26,7 +26,6 @@ class QWheelEvent;
 class QPainter;
 
 class InlineTextEdit;
-class ScrollCapturePanel;
 namespace LayerShellQt {
 class Window;
 }
@@ -44,7 +43,7 @@ class Window;
 class CaptureEditor final : public QWidget {
   Q_OBJECT
 public:
-  enum class CaptureMode { Region, Scroll, Window, Fullscreen, File };
+  enum class CaptureMode { Region, Fullscreen, File };
 
   explicit CaptureEditor(CaptureData capture,
                          CaptureMode mode = CaptureMode::Region,
@@ -200,7 +199,7 @@ private:
   };
   /// What the export worker hands back: the saved path (Save/Both) or an
   /// error. Rendering, PNG encoding and the clipboard round trip all run off
-  /// the UI thread; a tall scroll capture takes seconds to encode.
+  /// the UI thread; a very tall capture takes seconds to encode.
   struct FinishResult {
     OutputMode mode = OutputMode::Copy;
     QString saved;
@@ -272,17 +271,8 @@ public:
   [[nodiscard]] int selectedCountForTest() const {
     return static_cast<int>(selectedAnnotations_.size());
   }
-  /// The layer surface this editor lives on. The scroll state toggles its
-  /// keyboard interactivity and input mask while the page underneath is live.
+  /// The layer surface this editor lives on.
   void setLayerWindow(LayerShellQt::Window *layer) { layer_ = layer; }
-  /// Whether the select phase is in scroll mode. Test accessor.
-  [[nodiscard]] bool scrollModeForTest() const { return scrollMode_; }
-  /// Hands a stitched image to the editor as the scroll panel would. Test hook.
-  void adoptStitchedForTest(const QImage &image) { adoptStitched(image); }
-  /// Whether the scroll panel is up. Test accessor.
-  [[nodiscard]] bool scrollPanelActiveForTest() const {
-    return scrollPanel_ != nullptr;
-  }
   /// Blocks until the shelf has been listed; false when it is empty.
   bool waitForRecents();
   /// Whether the shelf is fanned out. Test accessor.
@@ -320,34 +310,6 @@ public:
     return customColorPickerOpen_;
   }
   [[nodiscard]] bool shapeMenuOpenForTest() const { return shapeMenuOpen_; }
-  /// Whether window selection is active in the select phase. Test accessor.
-  [[nodiscard]] bool windowModeForTest() const { return windowMode_; }
-  /// Test hook: force window mode for rendering regression coverage even
-  /// though the Niri UI gate keeps it unavailable to users.
-  void forceWindowModeForTest(bool enabled) {
-    windowMode_ = enabled;
-    if (enabled)
-      scrollMode_ = false;
-    dragging_ = false;
-    selection_ = {};
-    hoveredWindow_ = enabled ? windowAt(cursor_) : -1;
-    setStatus(enabled ? QStringLiteral("Window mode (test hook)")
-                      : QStringLiteral("Region mode (test hook)"));
-    updatePointerCursor();
-    update();
-  }
-  /// Test hook: force scroll mode for rendering coverage while the Niri UI
-  /// gate keeps it unavailable to users.
-  void forceScrollModeForTest(bool enabled) {
-    scrollMode_ = enabled;
-    if (enabled)
-      windowMode_ = false;
-    dragging_ = false;
-    selection_ = {};
-    hoveredWindow_ = -1;
-    updatePointerCursor();
-    update();
-  }
   /// Where the image is drawn on screen right now (widget pixels), and the
   /// annotation-space-to-widget scale. Test accessor: lets a test compute
   /// exact click/expectation points from real geometry instead of hand math.
@@ -465,8 +427,6 @@ private:
   [[nodiscard]] QPointF sourcePoint(const QPointF &logicalPoint) const;
   [[nodiscard]] QRectF mapWidgetToPreview(const QRectF &widgetRect) const;
   [[nodiscard]] QRectF mapPreviewToWidget(const QRectF &previewRect) const;
-  [[nodiscard]] int windowAt(const QPointF &position) const;
-  [[nodiscard]] int windowInDirection(int current, int key) const;
   /// Toolbar buttons laid out left to right in their logical groups
   /// (history, style, tools, actions). When `groupDividers` is non-null, the
   /// midpoint x of each gap between groups is appended to it, in widget
@@ -493,38 +453,26 @@ private:
   /// last one; Shift+Enter always adds a line's room.
   void beginText(const QPointF &point, int annotationIndex = -1,
                  int lineCapacity = 1);
-  void chooseWindow(int index);
-  /// Capture-kind tabs across the top of the select overlay. Region and
-  /// Window are modes (one is always lit); Fullscreen acts at once.
+  /// Capture-kind tabs across the top of the select overlay. Region is a
+  /// mode; Fullscreen acts at once.
   using SelectTab = CaptureKind;
   [[nodiscard]] QVector<CaptureTab> selectTabItems() const;
   [[nodiscard]] int selectTabAt(const QPointF &position) const;
   void activateSelectTab(SelectTab tab);
-  void setWindowMode(bool enabled);
-  void setScrollMode(bool enabled);
   void selectFullscreen();
   /// Back from the editor to the select phase: the op log is dropped and the
-  /// frozen screen is offered again for a new region or window.
-  void returnToSelect(bool windowMode);
-  /// Scroll capture takes over the surface with `region` drawn.
-  void startScrollCapture(const QRect &region);
-  /// Tears the scroll panel down; the surface is whole again.
-  void endScrollCapture();
-  /// A stitched scroll capture becomes the image being edited.
-  void adoptStitched(const QImage &image);
+  /// frozen screen is offered again for a new region.
+  void returnToSelect();
   /// The editor's other mode of working: not a region of the frozen screen
   /// but an image handed to it, with the op log it was last edited with.
   /// `kind` is the tab lit for it.
   void adoptImage(QImage image, OperationLog log, SelectTab kind,
                   const QString &status);
-  /// Leaves the select phase with a drawn region: edit it, or scroll it.
+  /// Leaves the select phase with a drawn region.
   void commitRegion(const QRectF &region, const QString &editStatus);
   /// Whether there is a live screen behind this capture to re-select from
-  /// (not a file, clipboard image or stitched result).
+  /// (not a file or clipboard image).
   [[nodiscard]] bool hasLiveScreen() const;
-  /// Small pill under the image in the edit phase offering scroll capture of
-  /// the drawn region; null when not offered.
-  [[nodiscard]] QRectF scrollPillRect() const;
   void paintSelectTabs(QPainter &painter);
   /// The shelf of earlier captures along the right edge of the select
   /// overlay: a stack of small cards that fans out under the pointer, each
@@ -574,7 +522,6 @@ private:
   void cycleBackground();
   void replayLog();
   void redoEdit();
-  void selectWindowInDirection(int key);
   void finish(OutputMode mode);
   void completeFinish(const FinishResult &result);
   void handleEscape();
@@ -622,16 +569,14 @@ private:
   /// What to hand back to once a color has been sampled: taking a color is
   /// not a change of tool.
   Tool toolBeforeEyedropper_ = Tool::Select;
-  bool scrollMode_ = false;
-  /// The image being edited was handed to the editor (stitched scroll,
-  /// shelved capture) rather than cut from the frozen screen.
+  /// The image being edited was handed to the editor (shelved capture)
+  /// rather than cut from the frozen screen.
   bool handedImage_ = false;
   /// The monitor as captured, kept apart from capture_.monitor (which a
   /// stitched result replaces) so the screen can be captured again.
   MonitorInfo liveMonitor_;
   [[nodiscard]] CaptureKind selectKind() const;
   LayerShellQt::Window *layer_ = nullptr;
-  ScrollCapturePanel *scrollPanel_ = nullptr;
   CaptureMode captureMode_ = CaptureMode::Region;
   /// Which tab produced the capture being edited; lit in the edit phase.
   SelectTab editedKind_ = SelectTab::Region;
@@ -698,7 +643,6 @@ private:
   qreal cutBandHi_ = 0.0;
   qreal cutDragRatio_ = 1.0;
   qreal cutDragOriginOffset_ = 0.0;
-  bool windowMode_ = false;
   BackgroundStyle backgroundStyle_ = BackgroundStyle::None;
   bool imageShadow_ = true;
   CanvasBoundaryMode canvasBoundaryMode_ = CanvasBoundaryMode::Framed;
@@ -720,7 +664,6 @@ private:
   QPointF shapeIntentOrigin_;
   QPointF textSizeIntentOrigin_;
   bool usingCustomColor_ = false;
-  int hoveredWindow_ = -1;
   int colorIndex_ = 0;
   PaletteConfig paletteConfig_ = defaultPaletteConfig();
   QColor customColor_;
@@ -803,7 +746,7 @@ private:
   QuickOutputMode quickOutputMode_ = QuickOutputMode::None;
   int pinCount_ = 0;
   QString status_ =
-      QStringLiteral("Drag to select an area · Space selects a window");
+      QStringLiteral("Drag to select an area · fullscreen tab selects the whole output");
   InlineTextEdit *textEditor_ = nullptr;
   QPointF textPoint_;
   QVector<Annotation> originalSelectedAnnotations_;
@@ -825,8 +768,7 @@ private:
   QTimer nudgePersistTimer_;
   QTimer pointerRepaintTimer_;
   QRegion pendingPointerDamage_;
-  /// View transform for navigating an oversized capture (e.g. a tall scroll
-  /// stitch). `viewZoom_` multiplies the fit scale (1 = whole image visible);
+  /// View transform for navigating an oversized capture. `viewZoom_` multiplies the fit scale (1 = whole image visible);
   /// `viewOffset_` pans in widget pixels. Reset on entering edit.
   qreal viewZoom_ = 1.0;
   QPointF viewOffset_;

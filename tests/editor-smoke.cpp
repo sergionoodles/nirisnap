@@ -172,8 +172,7 @@ QColor grabLogicalPixel(const QImage &ui, const QWidget &editor,
 
 /**
  * Reconstructs the old clip + full-widget backdrop blit. The clip is in the
- * unmapped space the previous punch used (widget selection, or preview
- * window.rect). Sampling destHole on this image is how the suite proves a
+ * unmapped space the previous punch used (widget selection). Sampling destHole on this image is how the suite proves a
  * case actually fails on that path.
  */
 QImage renderOldClipBlit(const QImage &source, const QSize &widget, qreal dpr,
@@ -258,8 +257,8 @@ bool expectUndimmedHole(const QImage &ui, const CaptureEditor &editor,
 
 /**
  * The select-phase undim hole must be a destHole/sourceRect blit, not clip +
- * full-widget cache. 1x widget==preview cannot catch fractional scale, 90/270
- * transform, or window.rect preview space.
+ * full-widget cache. 1x widget==preview cannot catch fractional scale or
+ * 90/270 transform.
  */
 bool runSelectUndimHoleCheck(QString &error) {
   const auto dragRegion = [](CaptureEditor &editor, const QPoint &a,
@@ -306,50 +305,7 @@ bool runSelectUndimHoleCheck(QString &error) {
       return false;
   }
 
-  // Window hover: window.rect is preview space. destHole is mapped to widget.
-  // Old clip uses window.rect on the widget, so the mapped interior stays dim.
-  {
-    const QSize preview(800, 600);
-    const QSize sourceSize(800, 600);
-    const QSize widget(400, 300);
-    const QRect windowRect(160, 120, 400, 320);
-    CaptureData capture = selectHoleCapture(
-        preview, sourceSize, 1.0, QRectF(windowRect),
-        {{{windowRect}, QStringLiteral("w1"), QStringLiteral("one")}});
-    CaptureEditor editor(capture);
-    prepareSelectEditor(editor, widget);
-    editor.forceWindowModeForTest(true); // Niri gate keeps Space in region; test hook forces window rendering
-    QTest::mouseMove(&editor, QPoint(100, 90), 20);
-    QApplication::processEvents();
-    const QImage ui = editor.grab().toImage();
-    if (!expectUndimmedHole(ui, editor, capture.source, widget, 1.0,
-                            QRectF(windowRect), QPointF(100, 90), QPointF(20, 200),
-                            QStringLiteral("Mismatched window"), error))
-      return false;
-  }
-
   // 90/270-style aspect swap: widget landscape, preview portrait.
-  {
-    const QSize preview(600, 800);
-    const QSize sourceSize(600, 800);
-    const QSize widget(800, 600);
-    const QRect windowRect(80, 200, 200, 280);
-    CaptureData capture = selectHoleCapture(
-        preview, sourceSize, 1.0, QRectF(windowRect),
-        {{{windowRect}, QStringLiteral("w1"), QStringLiteral("rotated")}});
-    CaptureEditor editor(capture);
-    prepareSelectEditor(editor, widget);
-    editor.forceWindowModeForTest(true); // Niri gate keeps Space in region; test hook forces window rendering
-    QTest::mouseMove(&editor, QPoint(320, 180), 20);
-    QApplication::processEvents();
-    const QImage ui = editor.grab().toImage();
-    if (!expectUndimmedHole(ui, editor, capture.source, widget, 1.0,
-                            QRectF(windowRect), QPointF(320, 180),
-                            QPointF(40, 400),
-                            QStringLiteral("Transform window"), error))
-      return false;
-  }
-
   {
     const QSize preview(600, 800);
     const QSize sourceSize(600, 800);
@@ -367,7 +323,7 @@ bool runSelectUndimHoleCheck(QString &error) {
       return false;
   }
 
-  // Combined mandatory grab: scale 2.0 and widget != preview, window + region.
+  // Combined mandatory grab: scale 2.0 and widget != preview.
   {
     const QSize preview(800, 600);
     const QSize sourceSize(1600, 1200);
@@ -383,27 +339,6 @@ bool runSelectUndimHoleCheck(QString &error) {
     if (!expectUndimmedHole(ui, editor, capture.source, widget, 2.0, previewHole,
                             QPointF(100, 180), QPointF(20, 200),
                             QStringLiteral("Scale 2.0 mismatched region"), error))
-      return false;
-  }
-
-  {
-    const QSize preview(800, 600);
-    const QSize sourceSize(1600, 1200);
-    const QSize widget(400, 300);
-    const QRect windowRect(160, 120, 400, 320);
-    CaptureData capture = selectHoleCapture(
-        preview, sourceSize, 2.0, QRectF(windowRect),
-        {{{windowRect}, QStringLiteral("w1"), QStringLiteral("hidpi")}});
-    CaptureEditor editor(capture);
-    prepareSelectEditor(editor, widget);
-    editor.forceWindowModeForTest(true); // Niri gate keeps Space in region; test hook forces window rendering
-    QTest::mouseMove(&editor, QPoint(100, 90), 20);
-    QApplication::processEvents();
-    const QImage ui = editor.grab().toImage();
-    if (!expectUndimmedHole(ui, editor, capture.source, widget, 2.0,
-                            QRectF(windowRect), QPointF(100, 90), QPointF(20, 200),
-                            QStringLiteral("Scale 2.0 mismatched window"),
-                            error))
       return false;
   }
 
@@ -449,14 +384,6 @@ bool runMeasurementReadoutCheck(QString &error) {
   QApplication::processEvents();
   if (!expect(QStringLiteral("300, 240"), QStringLiteral("Idle pointer")))
     return false;
-
-  editor.forceWindowModeForTest(true); // Niri UI gate keeps Space in region
-  QTest::mouseMove(&editor, QPoint(200, 150), 20);
-  QApplication::processEvents();
-  if (!expect(QStringLiteral("600 × 440"), QStringLiteral("Hovered window")))
-    return false;
-  editor.forceWindowModeForTest(false);
-  QApplication::processEvents();
 
   QTest::mousePress(&editor, Qt::LeftButton, Qt::NoModifier, QPoint(150, 120));
   QApplication::processEvents();
@@ -3097,7 +3024,7 @@ bool runSpotlightWheelSmoke(QApplication &application, QString &error) {
   return true;
 }
 
-/** Window crop, undo/redo replay, persist+reload, and redaction order. */
+/** Region crop, undo/redo replay, persist+reload, and redaction order. */
 bool runOpLogSmoke(QApplication &application, QString &error) {
   CaptureData capture;
   capture.monitor.name = QStringLiteral("TEST");
@@ -3118,19 +3045,20 @@ bool runOpLogSmoke(QApplication &application, QString &error) {
 
   {
     const QImage original = capture.source.copy();
-    // Window mode is unavailable in the Niri UI gate; the test hook forces
-    // it so window-pick cropping stays covered.
+    // Region selection crops the source without recapturing it.
     CaptureEditor editor(capture);
     editor.resize(800, 600);
     editor.show();
     application.processEvents();
-    editor.forceWindowModeForTest(true);
-    QTest::mouseClick(&editor, Qt::LeftButton, Qt::NoModifier, QPoint(200, 160));
+    QTest::mousePress(&editor, Qt::LeftButton, Qt::NoModifier, QPoint(80, 80));
+    QTest::mouseMove(&editor, QPoint(380, 300), 20);
+    QTest::mouseRelease(&editor, Qt::LeftButton, Qt::NoModifier,
+                        QPoint(380, 300));
     application.processEvents();
     if (editor.captureData().source != original ||
         editor.currentSelection() != QRectF(80, 80, 300, 220) ||
         editor.operationIndex() < 1) {
-      error = QStringLiteral("Window pick recaptured or did not crop the source");
+      error = QStringLiteral("Region pick recaptured or did not crop the source");
       return false;
     }
     editor.close();
@@ -7103,10 +7031,8 @@ bool runViewportZoomSmoke(QApplication &application, QString &error) {
   return true;
 }
 
-/** The capture-kind tabs on Niri: REGION and FULLSCREEN work; WINDOW and
- *  SCROLLING REGION are shown but unavailable (Niri IPC lacks tiled-window
- *  coordinates and screencopy scroll capture is not yet ported). Clicking or
- *  Space on them stays in region mode with an explanation. */
+/** The capture-kind tabs: REGION selects a region, FULLSCREEN selects the
+ *  whole monitor. No other capture kinds are offered. */
 bool runSelectTabsSmoke(QApplication &application, QString &error) {
   CaptureData capture;
   capture.monitor.name = QStringLiteral("TEST");
@@ -7116,8 +7042,6 @@ bool runSelectTabsSmoke(QApplication &application, QString &error) {
   capture.source = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
   capture.source.fill(QColor(QStringLiteral("#182030")));
   capture.previewSize = capture.source.size();
-  capture.windows = {{QRect(100, 100, 300, 200), QStringLiteral("w1"),
-                      QStringLiteral("One"), QStringLiteral("firefox")}};
 
   CaptureEditor editor(capture);
   editor.resize(800, 600);
@@ -7134,20 +7058,24 @@ bool runSelectTabsSmoke(QApplication &application, QString &error) {
     return true;
   };
   const auto click = [&](const QString &label) { return clickOn(editor, label); };
-  if (editor.windowModeForTest() || editor.scrollModeForTest()) {
-    error = QStringLiteral("Select overlay did not start in region mode");
+  if (!editor.selectingForTest()) {
+    error = QStringLiteral("Select overlay did not start selecting");
     return false;
   }
-  // WINDOW tab is visible but unavailable: stays in region with a notice.
-  if (!click(QStringLiteral("WINDOW")) || editor.windowModeForTest() ||
-      editor.scrollModeForTest() ||
-      !editor.statusForTest().contains(QStringLiteral("unavailable"))) {
-    error = QStringLiteral("Window tab did not report unavailable on Niri");
+  // Only REGION and FULLSCREEN tabs exist.
+  if (editor.selectTabRectForTest(QStringLiteral("REGION")).isNull() ||
+      editor.selectTabRectForTest(QStringLiteral("FULLSCREEN")).isNull()) {
+    error = QStringLiteral("REGION/FULLSCREEN tabs are missing");
     return false;
   }
-  if (!click(QStringLiteral("REGION")) || editor.windowModeForTest() ||
-      editor.scrollModeForTest()) {
-    error = QStringLiteral("Region tab did not return to region mode");
+  if (!editor.selectTabRectForTest(QStringLiteral("WINDOW")).isNull() ||
+      !editor.selectTabRectForTest(QStringLiteral("SCROLLING REGION"))
+           .isNull()) {
+    error = QStringLiteral("Removed capture tabs are still offered");
+    return false;
+  }
+  if (!click(QStringLiteral("REGION")) || !editor.selectingForTest()) {
+    error = QStringLiteral("Region tab did not stay in region mode");
     return false;
   }
   if (!click(QStringLiteral("FULLSCREEN")) || editor.selectingForTest() ||
@@ -7155,26 +7083,9 @@ bool runSelectTabsSmoke(QApplication &application, QString &error) {
     error = QStringLiteral("Fullscreen tab did not select the whole monitor");
     return false;
   }
-  // The strip stays in the edit phase as the way back; WINDOW from the editor
-  // drops the edit and returns to region selection with a notice.
-  if (!click(QStringLiteral("WINDOW")) || !editor.selectingForTest() ||
-      editor.windowModeForTest() || editor.scrollModeForTest() ||
-      !editor.statusForTest().contains(QStringLiteral("unavailable"))) {
-    error = QStringLiteral("Window tab from the editor did not return to "
-                           "region selection");
-    return false;
-  }
-  if (!click(QStringLiteral("FULLSCREEN"))) {
-    error = QStringLiteral("Second FULLSCREEN click missed the tab");
-    return false;
-  }
-  if (editor.selectingForTest()) {
-    error = QStringLiteral("Second FULLSCREEN stayed selecting, status=") +
-            editor.statusForTest();
-    return false;
-  }
+  // The strip stays in the edit phase as the way back; REGION from the editor
+  // drops the edit and returns to a clean region selection.
   if (!click(QStringLiteral("REGION")) || !editor.selectingForTest() ||
-      editor.windowModeForTest() || editor.scrollModeForTest() ||
       editor.annotationCountForTest() != 0) {
     error = QStringLiteral("Region tab from the editor did not return to a "
                            "clean region selection");
@@ -7182,92 +7093,31 @@ bool runSelectTabsSmoke(QApplication &application, QString &error) {
   }
   editor.close();
 
-  // Scrolling Region tab is visible but unavailable: no panel, stays selecting
-  // in region mode with a notice. Space likewise stays in region.
+  // Fullscreen works from a region editor too.
   {
-    CaptureEditor scrollEditor(capture, CaptureEditor::CaptureMode::Region);
-    scrollEditor.resize(800, 600);
-    scrollEditor.show();
+    CaptureEditor regionEditor(capture, CaptureEditor::CaptureMode::Region);
+    regionEditor.resize(800, 600);
+    regionEditor.show();
     application.processEvents();
-    if (scrollEditor.windowModeForTest() || scrollEditor.scrollModeForTest() ||
-        !scrollEditor.selectingForTest()) {
-      error = QStringLiteral("Region editor did not start selecting in region");
+    if (!regionEditor.selectingForTest()) {
+      error = QStringLiteral("Region editor did not start selecting");
       return false;
     }
-    if (!clickOn(scrollEditor, QStringLiteral("SCROLLING REGION")) ||
-        scrollEditor.scrollPanelActiveForTest() ||
-        scrollEditor.windowModeForTest() || scrollEditor.scrollModeForTest() ||
-        !scrollEditor.selectingForTest() ||
-        !scrollEditor.statusForTest().contains(QStringLiteral("unavailable"))) {
-      error = QStringLiteral("Scrolling Region tab did not report unavailable");
+    const QRectF tab =
+        regionEditor.selectTabRectForTest(QStringLiteral("FULLSCREEN"));
+    if (tab.isNull()) {
+      error = QStringLiteral("Fullscreen tab missing in region editor");
       return false;
     }
-    QTest::keyClick(&scrollEditor, Qt::Key_Space);
+    const QPoint at = tab.center().toPoint();
+    QTest::mouseClick(&regionEditor, Qt::LeftButton, Qt::NoModifier, at);
     application.processEvents();
-    if (scrollEditor.windowModeForTest() || scrollEditor.scrollModeForTest() ||
-        !scrollEditor.statusForTest().contains(QStringLiteral("unavailable"))) {
-      error = QStringLiteral("Space did not report unavailable on Niri");
+    if (regionEditor.selectingForTest() ||
+        regionEditor.renderCurrentOutput().size() != QSize(800, 600)) {
+      error = QStringLiteral("Fullscreen tab did not select the whole monitor");
       return false;
     }
-    QTest::keyClick(&scrollEditor, Qt::Key_S);
-    application.processEvents();
-    if (scrollEditor.windowModeForTest() || scrollEditor.scrollModeForTest() ||
-        !scrollEditor.statusForTest().contains(QStringLiteral("unavailable"))) {
-      error = QStringLiteral("S did not report unavailable on Niri");
-      return false;
-    }
-    // Window/Scroll constructors fall back to region with a notice.
-    CaptureEditor windowEditor(capture, CaptureEditor::CaptureMode::Window);
-    windowEditor.resize(800, 600);
-    windowEditor.show();
-    application.processEvents();
-    if (windowEditor.windowModeForTest() || windowEditor.scrollModeForTest()) {
-      error = QStringLiteral("Window constructor did not fall back to region");
-      windowEditor.close();
-      return false;
-    }
-    windowEditor.close();
-    CaptureEditor scrollCtor(capture, CaptureEditor::CaptureMode::Scroll);
-    scrollCtor.resize(800, 600);
-    scrollCtor.show();
-    application.processEvents();
-    if (scrollCtor.windowModeForTest() || scrollCtor.scrollModeForTest()) {
-      error = QStringLiteral("Scroll constructor did not fall back to region");
-      scrollCtor.close();
-      return false;
-    }
-    scrollCtor.close();
-    // A stitched result is handed to the same editor and annotates like any
-    // capture: the whole image is the selection, a drawn layer renders on it,
-    // and Esc then steps back rather than closing (the editor, not selecting).
-    QImage tall(400, 1800, QImage::Format_ARGB32);
-    tall.fill(QColor(QStringLiteral("#204060")));
-    scrollEditor.adoptStitchedForTest(tall);
-    application.processEvents();
-    if (scrollEditor.selectingForTest() ||
-        scrollEditor.renderCurrentOutput().size() != tall.size() ||
-        scrollEditor.scrollPanelActiveForTest()) {
-      error = QStringLiteral("Stitched image did not open in the editor whole");
-      return false;
-    }
-    QTest::keyClick(&scrollEditor, Qt::Key_R);
-    QTest::mousePress(&scrollEditor, Qt::LeftButton, Qt::NoModifier,
-                      QPoint(380, 200));
-    QTest::mouseMove(&scrollEditor, QPoint(420, 300), 20);
-    QTest::mouseRelease(&scrollEditor, Qt::LeftButton, Qt::NoModifier,
-                        QPoint(420, 300));
-    application.processEvents();
-    if (scrollEditor.annotationCountForTest() != 1) {
-      error = QStringLiteral("Could not annotate the stitched image");
-      return false;
-    }
-    QTest::keyClick(&scrollEditor, Qt::Key_Escape);
-    application.processEvents();
-    if (!scrollEditor.isVisible() || scrollEditor.selectingForTest()) {
-      error = QStringLiteral("Esc in the editor closed or left it");
-      return false;
-    }
-    scrollEditor.close();
+    regionEditor.close();
     application.processEvents();
   }
 
@@ -7507,7 +7357,7 @@ int main(int argc, char **argv) {
   // Live output capture against a real compositor (the smoke's own Wayland
   // connection; Qt's platform does not matter): open a session on the named
   // output and grab several frames through the same buffer, timing them,
-  // since scroll capture needs many per second.
+  // since live output capture needs many per second.
   const QString liveOutputName = qEnvironmentVariable("NIRISNAP_SMOKE_OUTPUT");
   if (!liveOutputName.isEmpty()) {
     OutputCapture output;
@@ -8101,21 +7951,6 @@ int main(int argc, char **argv) {
   editor.resize(800, 600);
   editor.show();
   application.processEvents();
-  editor.forceWindowModeForTest(true); // Niri gate keeps Space in region
-  QTest::mouseMove(&editor, QPoint(200, 160), 20);
-  application.processEvents();
-  const QImage hoverUi = editor.grab().toImage();
-  if (hoverUi.pixelColor(200, 160) != capture.source.pixelColor(200, 160))
-    return 7;
-  QTest::keyClick(&editor, Qt::Key_Right, Qt::MetaModifier);
-  application.processEvents();
-  const QImage keyboardWindowUi = editor.grab().toImage();
-  if (keyboardWindowUi.pixelColor(500, 200) !=
-          capture.source.pixelColor(500, 200) ||
-      keyboardWindowUi.pixelColor(200, 160) ==
-          capture.source.pixelColor(200, 160))
-    return 8;
-  editor.forceWindowModeForTest(false);
   QTest::mousePress(&editor, Qt::LeftButton, Qt::NoModifier, QPoint(100, 100));
   QTest::mouseMove(&editor, QPoint(650, 470), 20);
   QTest::mouseRelease(&editor, Qt::LeftButton, Qt::NoModifier,
@@ -8355,10 +8190,7 @@ int main(int argc, char **argv) {
   application.processEvents();
   if (editor.cursor().shape() != Qt::PointingHandCursor)
     return 12;
-  if (!editor.grab().save(outputRoot + QStringLiteral("-ui.png"), "PNG") ||
-      !hoverUi.save(outputRoot + QStringLiteral("-window-hover.png"), "PNG") ||
-      !keyboardWindowUi.save(
-          outputRoot + QStringLiteral("-window-keyboard.png"), "PNG"))
+  if (!editor.grab().save(outputRoot + QStringLiteral("-ui.png"), "PNG"))
     return 2;
 
   {
@@ -8524,37 +8356,6 @@ int main(int argc, char **argv) {
       !compactToolbarUi.save(
           outputRoot + QStringLiteral("-compact-toolbar.png"), "PNG"))
     return 83;
-  CaptureEditor windowModeEditor(capture, CaptureEditor::CaptureMode::Window);
-  windowModeEditor.resize(800, 600);
-  windowModeEditor.show();
-  application.processEvents();
-  if (!windowModeEditor.grab().save(
-          outputRoot + QStringLiteral("-window-mode.png"), "PNG"))
-    return 36;
-
-  CaptureData windowPickCapture = capture;
-  const QImage originalSource = windowPickCapture.source.copy();
-  // Window mode is unavailable in the Niri UI gate; force it via test hook.
-  CaptureEditor windowPickEditor(windowPickCapture);
-  windowPickEditor.resize(800, 600);
-  windowPickEditor.show();
-  application.processEvents();
-  windowPickEditor.forceWindowModeForTest(true);
-  QTest::mouseClick(&windowPickEditor, Qt::LeftButton, Qt::NoModifier,
-                    QPoint(200, 160));
-  application.processEvents();
-  const QImage windowCrop = windowPickEditor.renderCurrentOutput();
-  const QImage expectedCrop = renderCapture(
-      capture, QRectF(80, 80, 300, 220), {}, BackgroundStyle::None);
-  if (windowPickEditor.captureData().source != originalSource ||
-      windowPickEditor.currentSelection() != QRectF(80, 80, 300, 220) ||
-      windowCrop.convertToFormat(QImage::Format_ARGB32) !=
-          expectedCrop.convertToFormat(QImage::Format_ARGB32) ||
-      !windowPickEditor.grab().save(
-          outputRoot + QStringLiteral("-window-pick-crop.png"), "PNG"))
-    return 63;
-  windowPickEditor.close();
-
   CaptureData nativePreviewCapture = capture;
   nativePreviewCapture.monitor.scale = 2.0;
   nativePreviewCapture.monitor.pixelSize = {1600, 1200};
