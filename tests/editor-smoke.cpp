@@ -2929,7 +2929,7 @@ bool runAsyncCaptureRegionSmoke(QApplication &application, QString &error) {
   capture.monitor.geometry = {0, 0, 320, 240};
   capture.monitor.pixelSize = {320, 240};
   CaptureEditor editor(capture);
-  editor.resize(320, 240);
+  editor.resize(800, 600);
   editor.show();
   application.processEvents();
 
@@ -3118,10 +3118,13 @@ bool runOpLogSmoke(QApplication &application, QString &error) {
 
   {
     const QImage original = capture.source.copy();
-    CaptureEditor editor(capture, CaptureEditor::CaptureMode::Window);
+    // Window mode is unavailable in the Niri UI gate; the test hook forces
+    // it so window-pick cropping stays covered.
+    CaptureEditor editor(capture);
     editor.resize(800, 600);
     editor.show();
     application.processEvents();
+    editor.forceWindowModeForTest(true);
     QTest::mouseClick(&editor, Qt::LeftButton, Qt::NoModifier, QPoint(200, 160));
     application.processEvents();
     if (editor.captureData().source != original ||
@@ -7161,8 +7164,15 @@ bool runSelectTabsSmoke(QApplication &application, QString &error) {
                            "region selection");
     return false;
   }
-  if (!click(QStringLiteral("FULLSCREEN")) || editor.selectingForTest())
+  if (!click(QStringLiteral("FULLSCREEN"))) {
+    error = QStringLiteral("Second FULLSCREEN click missed the tab");
     return false;
+  }
+  if (editor.selectingForTest()) {
+    error = QStringLiteral("Second FULLSCREEN stayed selecting, status=") +
+            editor.statusForTest();
+    return false;
+  }
   if (!click(QStringLiteral("REGION")) || !editor.selectingForTest() ||
       editor.windowModeForTest() || editor.scrollModeForTest() ||
       editor.annotationCountForTest() != 0) {
@@ -8524,11 +8534,12 @@ int main(int argc, char **argv) {
 
   CaptureData windowPickCapture = capture;
   const QImage originalSource = windowPickCapture.source.copy();
-  CaptureEditor windowPickEditor(windowPickCapture,
-                                 CaptureEditor::CaptureMode::Window);
+  // Window mode is unavailable in the Niri UI gate; force it via test hook.
+  CaptureEditor windowPickEditor(windowPickCapture);
   windowPickEditor.resize(800, 600);
   windowPickEditor.show();
   application.processEvents();
+  windowPickEditor.forceWindowModeForTest(true);
   QTest::mouseClick(&windowPickEditor, Qt::LeftButton, Qt::NoModifier,
                     QPoint(200, 160));
   application.processEvents();

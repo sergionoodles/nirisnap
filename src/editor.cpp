@@ -872,9 +872,7 @@ CaptureEditor::CaptureEditor(CaptureData capture, CaptureMode mode,
   } else if (mode == CaptureMode::Window) {
     setWindowMode(true);
   } else if (mode == CaptureMode::Scroll) {
-    scrollMode_ = true;
-    setStatus(QStringLiteral(
-        "Scrolling capture is unavailable on Niri yet · drag a region instead"));
+    setScrollMode(true);
   }
   adjustSettleTimer_.setSingleShot(true);
   adjustSettleTimer_.setInterval(kAdjustSettleMs);
@@ -5676,6 +5674,10 @@ void CaptureEditor::returnToSelect(bool windowMode) {
   selection_ = {};
   if (windowMode) {
     // Window mode is unavailable on Niri; fall back to region with notice.
+    windowMode_ = false;
+    hoveredWindow_ = -1;
+    redactionBaseStale_ = true;
+    scheduleSnapshot();
     setWindowMode(true);
     return;
   }

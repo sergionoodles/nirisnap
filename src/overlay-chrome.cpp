@@ -33,7 +33,15 @@ QFont chromeDefaultFont() {
 QFont chromeMonoFont(int pixelSize, bool bold) {
   static const QFont base = [] {
     QFont font;
-    font.setFamilies({QStringLiteral("monospace")});
+    // Pinned stack, not the bare `monospace` alias: the alias resolves to
+    // whatever fontconfig prefers, and a system mono face with a missing
+    // fixed-pitch flag (seen on a Noto Sans Mono install reporting
+    // fixedPitch=false) would silently give proportional numerals.
+    // JetBrains Mono ships bundled (registered by loadCaptureFonts()) so it
+    // is always available; the rest are common system fallbacks.
+    font.setFamilies({QStringLiteral("JetBrains Mono"),
+                      QStringLiteral("DejaVu Sans Mono"),
+                      QStringLiteral("monospace")});
     return font;
   }();
   QFont font = base;

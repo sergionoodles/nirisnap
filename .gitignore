@@ -1,3 +1,17 @@
-build/
+# CMake / Ninja build trees, at any depth (makepkg also works under src/)
+build*/
 stage/
+# makepkg / AUR packaging output
+pkg/
+srcpkg/
 *.tar.gz
+*.pkg.tar.zst*
+# makepkg source extraction inside the repo checkout
+src/nirisnap-*/
+# smoke-test output prefix
+*-smoke-output*
+# editor / OS noise
+.vscode/
+.idea/
+*~
+.DS_Store

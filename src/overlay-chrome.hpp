@@ -27,8 +27,9 @@ class QPainter;
 /// tips, scroll-panel buttons) does not shrink or change family now that
 /// the external desktop theme is bypassed.
 [[nodiscard]] QFont chromeDefaultFont();
-/// Monospace counterpart for numeric readouts: fontconfig's `monospace`
-/// alias, which is what the fixed-font lookup resolved to under every theme.
+/// Monospace counterpart for numeric readouts: pinned stack headed by the
+/// bundled JetBrains Mono, so the face never depends on what the `monospace`
+/// alias happens to resolve to on a given install.
 [[nodiscard]] QFont chromeMonoFont(int pixelSize, bool bold = false);
 
 /// The kinds of capture the tab strip across the top offers, on every
