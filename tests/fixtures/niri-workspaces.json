@@ -1,0 +1,32 @@
+[
+  {
+    "id": 2,
+    "idx": 1,
+    "name": null,
+    "output": "HDMI-A-1",
+    "is_urgent": false,
+    "is_active": false,
+    "is_focused": false,
+    "active_window_id": 2
+  },
+  {
+    "id": 5,
+    "idx": 2,
+    "name": null,
+    "output": "HDMI-A-1",
+    "is_urgent": false,
+    "is_active": true,
+    "is_focused": true,
+    "active_window_id": 12
+  },
+  {
+    "id": 8,
+    "idx": 3,
+    "name": null,
+    "output": "HDMI-A-1",
+    "is_urgent": false,
+    "is_active": false,
+    "is_focused": false,
+    "active_window_id": null
+  }
+]

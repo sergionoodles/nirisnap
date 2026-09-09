@@ -1,0 +1,288 @@
+{
+  "name": "HDMI-A-1",
+  "make": "Example",
+  "model": "Example Monitor",
+  "serial": "0x00000000",
+  "physical_size": [
+    600,
+    340
+  ],
+  "modes": [
+    {
+      "width": 2560,
+      "height": 1440,
+      "refresh_rate": 59951,
+      "is_preferred": true
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "refresh_rate": 50000,
+      "is_preferred": false
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "refresh_rate": 30000,
+      "is_preferred": false
+    },
+    {
+      "width": 3840,
+      "height": 2160,
+      "refresh_rate": 29970,
+      "is_preferred": false
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "refresh_rate": 143912,
+      "is_preferred": false
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "refresh_rate": 119998,
+      "is_preferred": false
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "refresh_rate": 85000,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 120040,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 120000,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 119880,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 1680,
+      "height": 1050,
+      "refresh_rate": 59883,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 1024,
+      "refresh_rate": 75025,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 1024,
+      "refresh_rate": 60020,
+      "is_preferred": false
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "refresh_rate": 59901,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 960,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 1152,
+      "height": 864,
+      "refresh_rate": 75000,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "refresh_rate": 50000,
+      "is_preferred": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "refresh_rate": 75029,
+      "is_preferred": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "refresh_rate": 70069,
+      "is_preferred": false
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "refresh_rate": 60004,
+      "is_preferred": false
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "refresh_rate": 75000,
+      "is_preferred": false
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "refresh_rate": 72188,
+      "is_preferred": false
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "refresh_rate": 60317,
+      "is_preferred": false
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "refresh_rate": 56250,
+      "is_preferred": false
+    },
+    {
+      "width": 720,
+      "height": 576,
+      "refresh_rate": 50000,
+      "is_preferred": false
+    },
+    {
+      "width": 720,
+      "height": 480,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 720,
+      "height": 480,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 640,
+      "height": 480,
+      "refresh_rate": 75000,
+      "is_preferred": false
+    },
+    {
+      "width": 640,
+      "height": 480,
+      "refresh_rate": 72809,
+      "is_preferred": false
+    },
+    {
+      "width": 640,
+      "height": 480,
+      "refresh_rate": 66667,
+      "is_preferred": false
+    },
+    {
+      "width": 640,
+      "height": 480,
+      "refresh_rate": 60000,
+      "is_preferred": false
+    },
+    {
+      "width": 640,
+      "height": 480,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 640,
+      "height": 480,
+      "refresh_rate": 59940,
+      "is_preferred": false
+    },
+    {
+      "width": 720,
+      "height": 400,
+      "refresh_rate": 70082,
+      "is_preferred": false
+    }
+  ],
+  "current_mode": 0,
+  "is_custom_mode": false,
+  "vrr_supported": true,
+  "vrr_enabled": false,
+  "logical": {
+    "x": 0,
+    "y": 0,
+    "width": 2560,
+    "height": 1440,
+    "scale": 1.0,
+    "transform": "Normal"
+  }
+}

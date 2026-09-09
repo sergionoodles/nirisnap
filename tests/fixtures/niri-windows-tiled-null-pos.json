@@ -1,0 +1,118 @@
+[
+  {
+    "id": 12,
+    "title": "Example window 12",
+    "app_id": "t3code",
+    "pid": 1000,
+    "workspace_id": 5,
+    "is_focused": false,
+    "is_floating": false,
+    "is_urgent": false,
+    "layout": {
+      "pos_in_scrolling_layout": [
+        1,
+        1
+      ],
+      "tile_size": [
+        2548.0,
+        1394.0
+      ],
+      "window_size": [
+        2548,
+        1394
+      ],
+      "tile_pos_in_workspace_view": null,
+      "window_offset_in_tile": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "id": 13,
+    "title": "Example window 13",
+    "app_id": "com.mitchellh.ghostty",
+    "pid": 1000,
+    "workspace_id": 5,
+    "is_focused": false,
+    "is_floating": false,
+    "is_urgent": false,
+    "layout": {
+      "pos_in_scrolling_layout": [
+        2,
+        1
+      ],
+      "tile_size": [
+        1271.0,
+        1394.0
+      ],
+      "window_size": [
+        1271,
+        1394
+      ],
+      "tile_pos_in_workspace_view": null,
+      "window_offset_in_tile": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "id": 9,
+    "title": "Example window 9",
+    "app_id": "com.mitchellh.ghostty",
+    "pid": 1000,
+    "workspace_id": 2,
+    "is_focused": false,
+    "is_floating": false,
+    "is_urgent": false,
+    "layout": {
+      "pos_in_scrolling_layout": [
+        2,
+        1
+      ],
+      "tile_size": [
+        1271.0,
+        1394.0
+      ],
+      "window_size": [
+        1271,
+        1394
+      ],
+      "tile_pos_in_workspace_view": null,
+      "window_offset_in_tile": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "title": "Example window 2",
+    "app_id": "google-chrome",
+    "pid": 1000,
+    "workspace_id": 2,
+    "is_focused": false,
+    "is_floating": false,
+    "is_urgent": false,
+    "layout": {
+      "pos_in_scrolling_layout": [
+        1,
+        1
+      ],
+      "tile_size": [
+        2548.0,
+        1394.0
+      ],
+      "window_size": [
+        2548,
+        1394
+      ],
+      "tile_pos_in_workspace_view": null,
+      "window_offset_in_tile": [
+        0.0,
+        0.0
+      ]
+    }
+  }
+]

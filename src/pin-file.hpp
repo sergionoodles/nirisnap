@@ -1,0 +1,39 @@
+/** @fileoverview Owns locks for pinned snapshot files and layout slots. */
+#pragma once
+
+#include <QString>
+
+/** Tracks a pinned snapshot while its window is open. */
+class PinSnapshotFile {
+public:
+  explicit PinSnapshotFile(QString path);
+  ~PinSnapshotFile();
+
+  PinSnapshotFile(const PinSnapshotFile &) = delete;
+  PinSnapshotFile &operator=(const PinSnapshotFile &) = delete;
+
+  [[nodiscard]] bool isLocked() const;
+  void preserveForEditor();
+
+private:
+  QString path_;
+  int fd_ = -1;
+  bool preserve_ = false;
+};
+
+/** Holds the first free layout slot while a pin is active. */
+class PinSlotLock {
+public:
+  PinSlotLock();
+  ~PinSlotLock();
+
+  PinSlotLock(const PinSlotLock &) = delete;
+  PinSlotLock &operator=(const PinSlotLock &) = delete;
+
+  [[nodiscard]] bool isLocked() const;
+  [[nodiscard]] int index() const;
+
+private:
+  int fd_ = -1;
+  int index_ = -1;
+};

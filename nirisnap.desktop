@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Nirisnap
+Comment=Capture and annotate a screenshot
+Exec=nirisnap
+Icon=camera-photo
+Terminal=false
+NoDisplay=true
+Categories=Graphics;
+StartupNotify=false
