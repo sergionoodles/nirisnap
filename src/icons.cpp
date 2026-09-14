@@ -1,6 +1,7 @@
 #include "icons.hpp"
 
 #include "overlay-chrome.hpp"
+#include "theme-colors.hpp"
 
 #include <QConicalGradient>
 #include <QPainter>
@@ -178,9 +179,10 @@ void drawToolbarIcon(QPainter &painter, const QRectF &bounds,
     path.lineTo(8, 16);
     painter.drawPath(path);
     if (action == QStringLiteral("both")) {
-      painter.setBrush(QColor(QStringLiteral("#0a84ff")));
-      painter.setPen(
-          QPen(Qt::white, 1.8, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+      const ThemeColors &theme = currentThemeColors();
+      painter.setBrush(theme.accent);
+      painter.setPen(QPen(theme.onAccent, 1.8, Qt::SolidLine, Qt::RoundCap,
+                           Qt::RoundJoin));
       painter.drawEllipse(QPointF(18, 18), 4.5, 4.5);
       painter.drawLine(QPointF(16, 18), QPointF(17.5, 19.5));
       painter.drawLine(QPointF(17.5, 19.5), QPointF(20.5, 16.5));

@@ -11,6 +11,7 @@
 #include "recent-snaps.hpp"
 #include "instance-lock-smoke.hpp"
 #include "palette-config-smoke.hpp"
+#include "theme-colors-smoke.hpp"
 #include "pin-layout-smoke.hpp"
 #include "stitch-smoke.hpp"
 #include "stitch.hpp"
@@ -7354,6 +7355,16 @@ int main(int argc, char **argv) {
     return 18;
   qputenv("NIRISNAP_RECENT_DIR", smokeShelf.path().toUtf8());
 
+  // Chrome follows the desktop theme (Noctalia CSS, Niri focus-ring); point
+  // XDG_CONFIG_HOME at an empty directory so pixel assertions see the
+  // deterministic built-in defaults on every machine, themed or not.
+  // Theme parsing itself is covered by runThemeColorsSmoke's pure-function
+  // checks below, which need no filesystem theme.
+  QTemporaryDir smokeConfigHome;
+  if (!smokeConfigHome.isValid())
+    return 18;
+  qputenv("XDG_CONFIG_HOME", smokeConfigHome.path().toUtf8());
+
   // Live output capture against a real compositor (the smoke's own Wayland
   // connection; Qt's platform does not matter): open a session on the named
   // output and grab several frames through the same buffer, timing them,
@@ -8804,6 +8815,12 @@ int main(int argc, char **argv) {
   QString paletteError;
   if (!runPaletteConfigSmoke(paletteError)) {
     qWarning().noquote() << "palette config smoke failed:" << paletteError;
+    return EXIT_FAILURE;
+  }
+
+  QString themeError;
+  if (!runThemeColorsSmoke(themeError)) {
+    qWarning().noquote() << "theme colors smoke failed:" << themeError;
     return EXIT_FAILURE;
   }
 

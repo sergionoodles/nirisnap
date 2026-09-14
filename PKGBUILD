@@ -15,7 +15,7 @@ optdepends=(
 )
 # After tagging v$pkgver upstream, refresh with: updpkgsums && makepkg --printsrcinfo > .SRCINFO
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('4455715bebf0aed39884c8b3a39bc7361ea534c2b0329fa89b1b39911d57b5c8')
+sha256sums=('bf3b83f6e81e3d4882b7f8570960391496deafc0e92fa97bfd08c10df9ea2650')
 
 build() {
   cmake -S "$pkgname-$pkgver" -B build -G Ninja \

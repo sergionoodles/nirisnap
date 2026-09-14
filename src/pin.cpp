@@ -3,6 +3,7 @@
 #include "pin-file.hpp"
 #include "pin-layout.hpp"
 #include "icons.hpp"
+#include "theme-colors.hpp"
 
 #include <LayerShellQt/Window>
 #include <QApplication>
@@ -85,7 +86,7 @@ protected:
           frame.adjusted(-spread, -spread, spread, spread),
           kVisualRadius + spread, kVisualRadius + spread);
     }
-    painter.setBrush(QColor(18, 18, 22, 245));
+    painter.setBrush(withAlpha(currentThemeColors().surface, 245));
     painter.drawRoundedRect(frame, kVisualRadius, kVisualRadius);
 
     const QRectF imageArea =
@@ -123,19 +124,21 @@ protected:
     const qreal width = metrics.horizontalAdvance(hoverTip_) + 22;
     const QRectF pill(std::max(0.0, this->width() - width - kCloseButtonInset),
                       kCloseButtonInset + kCloseButtonSize + 5, width, 22);
+    const ThemeColors &theme = currentThemeColors();
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(12, 12, 16, 210));
+    painter.setBrush(withAlpha(theme.surface, 210));
     painter.drawRoundedRect(pill, 11, 11);
-    painter.setPen(QColor(240, 240, 245));
+    painter.setPen(theme.onSurface);
     painter.drawText(pill, Qt::AlignCenter, hoverTip_);
   }
 
   void drawControlButton(QPainter &painter, const QRectF &rect,
                          const QString &action) const {
+    const ThemeColors &theme = currentThemeColors();
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(12, 12, 16, 190));
+    painter.setBrush(withAlpha(theme.surface, 190));
     painter.drawRoundedRect(rect, 6, 6);
-    drawToolbarIcon(painter, rect, action, {}, QColor(245, 245, 247));
+    drawToolbarIcon(painter, rect, action, {}, theme.onSurface);
   }
 
   void paintToast(QPainter &painter) const {
@@ -143,11 +146,12 @@ protected:
     const QRectF pill((width() - metrics.horizontalAdvance(toast_) - 28) / 2.0,
                       height() - 42, metrics.horizontalAdvance(toast_) + 28,
                       26);
+    const ThemeColors &theme = currentThemeColors();
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(12, 12, 16, 205));
+    painter.setBrush(withAlpha(theme.surface, 205));
     painter.drawRoundedRect(pill, 13, 13);
-    painter.setPen(QColor(240, 240, 245));
+    painter.setPen(theme.onSurface);
     painter.drawText(pill, Qt::AlignCenter, toast_);
   }
 

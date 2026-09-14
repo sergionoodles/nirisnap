@@ -80,7 +80,10 @@ Niri.
   themes are deliberately bypassed at startup in favour of Qt's built-in
   `generic` theme (see [docs/dependencies.md](docs/dependencies.md)). Chrome
   must use the pinned fonts and explicit colours; do not derive chrome from
-  `QFontDatabase::systemFont`, `QStyle`, or `palette()`.
+  `QFontDatabase::systemFont`, `QStyle`, or `palette()`. The one exception
+  is chrome *colors*, which are read as plain files from Noctalia's
+  generated GTK CSS with a Niri focus-ring fallback
+  (`src/theme-colors.cpp`); annotation presets stay unthemed.
 
 ## Repository layout
 
@@ -92,6 +95,7 @@ Niri.
 | `src/capture.cpp/.hpp` | Capture, render pipeline, output (clipboard/save/notify), source+JSON operation-log persistence, config loading glue |
 | `src/editor.cpp/.hpp` | Annotation editor: tools, vector layers, operation-log undo/redo, the select↔edit phase machine, export |
 | `src/overlay-chrome.cpp/.hpp` | Shared chrome every overlay wears: the capture-kind tab strip, hotkey legend, status pill |
+| `src/theme-colors.cpp/.hpp` | Chrome colors from Noctalia's generated GTK CSS, Niri focus-ring fallback, built-in defaults |
 | `src/stitch.cpp/.hpp`, `src/auto-capture.cpp/.hpp`, `src/scroll-inject.cpp/.hpp` | Offline frame classification, stitching, and scroll injection helpers (no overlay UI) |
 | `src/scroll-inject.cpp/.hpp` | Auto-scroll wheel injection (`zwlr_virtual_pointer_v1`; uinput disabled until a Niri scroll policy is queryable) |
 

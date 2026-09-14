@@ -59,6 +59,16 @@ palette. The chrome and application-default fonts are pinned by
 depend on an external desktop theme, `QStyle`- or palette-derived chrome,
 or icon-theme lookup.
 
+The one exception is chrome *colors* (`src/theme-colors.cpp`): the overlay
+reads Noctalia's generated `~/.config/gtk-4.0/noctalia.css` as a plain text
+file (no GTK, no Qt theme plugin), falling back to the Niri
+`focus-ring { active-color }` from `~/.config/niri/noctalia.kdl` plus the
+local `cfg/layout.kdl` override, then to the built-in dark defaults. It is
+file parsing, not theme-plugin integration: no new link-time or runtime
+dependency, no `nirisnap.conf` key, and unreadable files silently keep the
+defaults. Annotation preset colors (`[colors]` in `nirisnap.conf`) are
+intentionally not themed.
+
 ## The one config file
 
 `~/.config/nirisnap/nirisnap.conf` is optional INI, read with `QSettings`.

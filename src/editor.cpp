@@ -11,6 +11,7 @@
 #include "recent-snaps.hpp"
 #include "startup-timing.hpp"
 #include "text-band.hpp"
+#include "theme-colors.hpp"
 
 #include <QtConcurrent/QtConcurrentRun>
 
@@ -499,10 +500,11 @@ void drawInstantTooltip(QPainter &painter, const QRect &bounds,
   if (y < 6)
     y = anchor.bottom() + 7;
   const QRectF pill(x, y, width, height);
-  painter.setPen(QPen(QColor(255, 255, 255, 42), 1));
-  painter.setBrush(QColor(12, 12, 15, 248));
+  const ThemeColors &theme = currentThemeColors();
+  painter.setPen(QPen(withAlpha(theme.onSurface, 42), 1));
+  painter.setBrush(withAlpha(theme.surface, 248));
   painter.drawRoundedRect(pill, 7, 7);
-  painter.setPen(Qt::white);
+  painter.setPen(theme.onSurface);
   painter.drawText(pill, Qt::AlignCenter, text);
 }
 
@@ -546,10 +548,11 @@ void drawMeasureBadge(QPainter &painter, const QRect &bounds,
       std::clamp(y, margin,
                  std::max(margin, bounds.height() - height - margin)),
       width, height);
-  painter.setPen(QPen(QColor(255, 255, 255, 42), 1));
-  painter.setBrush(QColor(12, 12, 15, 235));
+  const ThemeColors &measureTheme = currentThemeColors();
+  painter.setPen(QPen(withAlpha(measureTheme.onSurface, 42), 1));
+  painter.setBrush(withAlpha(measureTheme.surface, 235));
   painter.drawRoundedRect(pill, 6, 6);
-  painter.setPen(Qt::white);
+  painter.setPen(measureTheme.onSurface);
   painter.drawText(pill, Qt::AlignCenter, text);
 }
 
@@ -2979,10 +2982,14 @@ void CaptureEditor::ensureTextEditor() {
   textEditor_ = new InlineTextEdit(this);
   textEditor_->hide();
   textEditor_->setViewportMargins(0, 0, 0, 0);
-  textEditor_->setStyleSheet(QStringLiteral(
-      "QPlainTextEdit { color: #ff375f; background: transparent; "
-      "border: none; padding: 0;"
-      " selection-background-color: #0a84ff; selection-color: #ffffff; }"));
+  {
+    const ThemeColors &textTheme = currentThemeColors();
+    textEditor_->setStyleSheet(
+        QStringLiteral("QPlainTextEdit { color: #ff375f; background: "
+                       "transparent; border: none; padding: 0;"
+                       " selection-background-color: %1; selection-color: %2; }")
+            .arg(textTheme.accent.name(), textTheme.onAccent.name()));
+  }
   textEditor_->installEventFilter(this);
   connect(textEditor_, &QPlainTextEdit::cursorPositionChanged, this, [this] {
     textCaretOn_ = true;
@@ -3065,8 +3072,9 @@ void CaptureEditor::beginText(const QPointF &point, int annotationIndex,
       QStringLiteral(
           "QPlainTextEdit { color: %1; background: transparent; "
           "border: none; margin: 0; padding: 0;"
-          " selection-background-color: #0a84ff; selection-color: #ffffff; }")
-          .arg(textColor_.name()));
+          " selection-background-color: %2; selection-color: %3; }")
+          .arg(textColor_.name(), currentThemeColors().accent.name(),
+               currentThemeColors().onAccent.name()));
   textEditor_->setViewportMargins(pillPad, 0, pillPad, 0);
   textEditor_->setGeometry(qRound(position.x()) - pillPad, qRound(position.y()),
                            72 + 2 * pillPad,
@@ -3197,7 +3205,7 @@ void CaptureEditor::paintOcrOverlay(QPainter &painter, const QRectF &image,
     return;
   const QRectF region(image.topLeft() + ocrRegion_.topLeft() * scale,
                       ocrRegion_.size() * scale);
-  const QColor accent(QStringLiteral("#0a84ff"));
+  const QColor accent = currentThemeColors().accent;
   painter.save();
   if (ocrResultText_.isEmpty()) {
     // Scanning: a tinted box with a bright band sweeping top to bottom, the
@@ -3212,7 +3220,7 @@ void CaptureEditor::paintOcrOverlay(QPainter &painter, const QRectF &image,
     QLinearGradient gradient(0, y, 0, y + bandHeight);
     gradient.setColorAt(0.0, QColor(accent.red(), accent.green(), accent.blue(), 0));
     gradient.setColorAt(0.8, QColor(accent.red(), accent.green(), accent.blue(), 130));
-    gradient.setColorAt(1.0, QColor(255, 255, 255, 230));
+    gradient.setColorAt(1.0, withAlpha(currentThemeColors().onSurface, 230));
     painter.fillRect(QRectF(region.left(), y, region.width(), bandHeight),
                      gradient);
     painter.setClipping(false);
@@ -3269,8 +3277,9 @@ void CaptureEditor::paintOcrOverlay(QPainter &painter, const QRectF &image,
     y = std::max(68.0, height() - 60 - cardHeight);
   const QRectF card(x, y, cardWidth, cardHeight);
 
-  painter.setPen(QPen(QColor(255, 255, 255, 40), 1));
-  painter.setBrush(QColor(18, 18, 22, 240));
+  const ThemeColors &ocrTheme = currentThemeColors();
+  painter.setPen(QPen(withAlpha(ocrTheme.onSurface, 40), 1));
+  painter.setBrush(withAlpha(ocrTheme.surface, 240));
   painter.drawRoundedRect(card, 10, 10);
   painter.setPen(QPen(accent, 1.5));
   painter.setBrush(Qt::NoBrush);
@@ -3284,7 +3293,7 @@ void CaptureEditor::paintOcrOverlay(QPainter &painter, const QRectF &image,
                    truncated ? QStringLiteral("Copied to clipboard · shown in part")
                              : QStringLiteral("Copied to clipboard"));
   painter.setFont(font);
-  painter.setPen(QColor(QStringLiteral("#f5f5f7")));
+  painter.setPen(ocrTheme.onSurface);
   const QRectF textRect(card.left() + kPad,
                         card.top() + kPad + headerHeight + kHeaderGap,
                         textWidth, textBounds.height());
@@ -5586,8 +5595,9 @@ void CaptureEditor::paintRecents(QPainter &painter) {
                                                   90 * (1.0 - recentsFan_))));
     painter.restore();
     painter.setBrush(Qt::NoBrush);
-    painter.setPen(QPen(hovered ? QColor(QStringLiteral("#30d158"))
-                                : QColor(255, 255, 255, 120),
+    const ThemeColors &recentTheme = currentThemeColors();
+    painter.setPen(QPen(hovered ? recentTheme.accent
+                                : withAlpha(recentTheme.onSurface, 120),
                         hovered ? 2.0 : 1.0));
     painter.drawRoundedRect(local, 4, 4);
     painter.restore();
@@ -5604,9 +5614,9 @@ void CaptureEditor::paintRecents(QPainter &painter) {
         const QRectF pill(card.rect.left() - 12.0 - w,
                           card.rect.center().y() - 9.0, w, 18.0);
         painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor(18, 18, 22, 235));
+        painter.setBrush(withAlpha(recentTheme.surface, 235));
         painter.drawRoundedRect(pill, 9, 9);
-        painter.setPen(QColor(255, 255, 255, 220));
+        painter.setPen(withAlpha(recentTheme.onSurface, 220));
         painter.drawText(pill, Qt::AlignCenter, age);
       }
     }
@@ -5621,7 +5631,8 @@ void CaptureEditor::paintRecents(QPainter &painter) {
   const QString caption = recentsFan_ < 0.5 ? QStringLiteral("RECENT")
                                             : QStringLiteral("CLICK TO REOPEN");
   const qreal fade = std::abs(recentsFan_ - 0.5) * 2.0;
-  painter.setPen(QColor(255, 255, 255, static_cast<int>(150 * fade)));
+  painter.setPen(withAlpha(currentThemeColors().onSurface,
+                           static_cast<int>(150 * fade)));
   qreal bottom = cards.constFirst().rect.bottom();
   for (const RecentCard &card : cards)
     bottom = std::max(bottom, card.rect.bottom());
@@ -6043,9 +6054,11 @@ void CaptureEditor::paintEdit(QPainter &painter) {
   if (tool_ == Tool::Select && marqueeSelecting_ &&
       !marqueeRect_.isEmpty()) {
     const qreal scale = std::max<qreal>(editScale(), 0.01);
-    painter.setPen(
-        QPen(QColor(QStringLiteral("#0a84ff")), 2.0 / scale));
-    painter.setBrush(QColor(10, 132, 255, 38));
+    const QColor marqueeAccent = currentThemeColors().accent;
+    painter.setPen(QPen(marqueeAccent, 2.0 / scale));
+    painter.setBrush(
+        QColor(marqueeAccent.red(), marqueeAccent.green(),
+               marqueeAccent.blue(), 38));
     painter.drawRect(marqueeRect_.normalized());
   }
   if (cutDragActive_) {
@@ -6135,8 +6148,9 @@ void CaptureEditor::paintEdit(QPainter &painter) {
     if (!multiple) {
       const Annotation &selected = annotations_.at(selectedAnnotation_);
       const qreal radius = 5.0 / scale;
-      painter.setPen(QPen(Qt::white, 1.0 / scale));
-      painter.setBrush(QColor(QStringLiteral("#0a84ff")));
+      const ThemeColors &handleTheme = currentThemeColors();
+      painter.setPen(QPen(handleTheme.onSurface, 1.0 / scale));
+      painter.setBrush(handleTheme.accent);
       for (const auto &[position, handle] : annotationHandles(selected))
         painter.drawEllipse(position, radius, radius);
     }
@@ -6149,27 +6163,32 @@ void CaptureEditor::paintEdit(QPainter &painter) {
   // selected object". Keep it out of the layer-selection state entirely;
   // clicking empty canvas puts the layers down and brings cropping back.
   if (tool_ == Tool::Select && selectedAnnotations_.isEmpty()) {
-    painter.setPen(QPen(QColor(QStringLiteral("#0a84ff")), 1, Qt::DashLine));
+    const ThemeColors &cropTheme = currentThemeColors();
+    painter.setPen(QPen(cropTheme.accent, 1, Qt::DashLine));
     painter.setBrush(Qt::NoBrush);
     painter.drawRect(image.adjusted(-1, -1, 1, 1));
     if (grown) {
-      painter.setPen(QPen(QColor(10, 132, 255, 100), 1, Qt::DashLine));
+      painter.setPen(QPen(QColor(cropTheme.accent.red(), cropTheme.accent.green(),
+                                 cropTheme.accent.blue(), 100),
+                          1, Qt::DashLine));
       painter.drawRect(sourceImage);
     }
-    painter.setPen(QPen(QColor(QStringLiteral("#0a84ff")), 2));
-    painter.setBrush(QColor(QStringLiteral("#f5f5f7")));
+    painter.setPen(QPen(cropTheme.accent, 2));
+    painter.setBrush(cropTheme.onSurface);
     for (const QRectF &handle : cropHandleRects())
       painter.drawRoundedRect(handle, 3, 3);
   }
 
   if (shapeMenuOpen_) {
-    painter.setPen(QPen(QColor(255, 255, 255, 34), 1));
-    painter.setBrush(QColor(22, 22, 28, 248));
+    const ThemeColors &menuTheme = currentThemeColors();
+    painter.setPen(QPen(withAlpha(menuTheme.onSurface, 34), 1));
+    painter.setBrush(withAlpha(menuTheme.surface, 248));
     painter.drawRoundedRect(shapeMenuRect(), 9, 9);
   }
   if (colorPaletteOpen_) {
-    painter.setPen(QPen(QColor(255, 255, 255, 34), 1));
-    painter.setBrush(QColor(22, 22, 28, 248));
+    const ThemeColors &menuTheme = currentThemeColors();
+    painter.setPen(QPen(withAlpha(menuTheme.onSurface, 34), 1));
+    painter.setBrush(withAlpha(menuTheme.surface, 248));
     painter.drawRoundedRect(colorPaletteRect(), 9, 9);
   }
   if (customColorPickerOpen_) {
@@ -6177,8 +6196,9 @@ void CaptureEditor::paintEdit(QPainter &painter) {
     const QRectF field = panel.adjusted(12, 12, -36, -12);
     const QRectF hue(panel.right() - 26, panel.top() + 12, 14,
                      panel.height() - 24);
-    painter.setPen(QPen(QColor(255, 255, 255, 38), 1));
-    painter.setBrush(QColor(20, 20, 25, 250));
+    const ThemeColors &pickerTheme = currentThemeColors();
+    painter.setPen(QPen(withAlpha(pickerTheme.onSurface, 38), 1));
+    painter.setBrush(withAlpha(pickerTheme.surface, 250));
     painter.drawRoundedRect(panel, 10, 10);
 
     painter.setPen(Qt::NoPen);
@@ -6249,13 +6269,19 @@ void CaptureEditor::paintEdit(QPainter &painter) {
   const QString currentTool = toolAction(tool_);
   const QFont buttonFont = chromeFont(11, true);
   painter.setFont(buttonFont);
+  const ThemeColors &toolbarTheme = currentThemeColors();
+  // Button depth stays relative to the themed surface so the bar reads on
+  // any dark theme, not just the old #222228 grays.
+  const QColor buttonBase = toolbarTheme.surface.lighter(135);
+  const QColor buttonHover = toolbarTheme.surface.lighter(170);
+  const QColor buttonSelected = toolbarTheme.surface.lighter(220);
   QVector<qreal> toolbarDividers;
   const QVector<ToolbarButton> buttons = toolbarButtons(&toolbarDividers);
   if (!toolbarDividers.isEmpty()) {
     const qreal scale = toolbarScale(width());
     const qreal barHeight = 36 * scale;
     const qreal barY = toolbarTop();
-    painter.setPen(QPen(QColor(255, 255, 255, 30), 1));
+    painter.setPen(QPen(withAlpha(toolbarTheme.onSurface, 30), 1));
     for (const qreal dividerX : std::as_const(toolbarDividers))
       painter.drawLine(QPointF(dividerX, barY + 6),
                        QPointF(dividerX, barY + barHeight - 6));
@@ -6278,16 +6304,18 @@ void CaptureEditor::paintEdit(QPainter &painter) {
     const bool hovered = button.rect.contains(cursor_);
     if (hovered)
       hoveredButton = &button;
-    painter.setPen(QPen(QColor(255, 255, 255, selected ? 64 : 26), 1));
-    painter.setBrush(selected ? QColor(66, 66, 75, 250)
-                              : (hovered ? QColor(48, 48, 56, 248)
-                                         : QColor(34, 34, 40, 244)));
+    painter.setPen(
+        QPen(withAlpha(toolbarTheme.onSurface, selected ? 64 : 26), 1));
+    painter.setBrush(selected ? withAlpha(buttonSelected, 250)
+                              : (hovered ? withAlpha(buttonHover, 248)
+                                         : withAlpha(buttonBase, 244)));
     if (button.action == QStringLiteral("both"))
-      painter.setBrush(QColor(QStringLiteral("#0a84ff")));
+      painter.setBrush(toolbarTheme.accent);
     painter.drawRoundedRect(button.rect, 8, 8);
     if (button.color.isValid()) {
       const QPointF center = button.rect.center();
-      painter.setPen(QPen(selected ? Qt::white : QColor(255, 255, 255, 80),
+      painter.setPen(QPen(selected ? toolbarTheme.onSurface
+                                   : withAlpha(toolbarTheme.onSurface, 80),
                           selected ? 2 : 1));
       painter.setBrush(button.color);
       painter.drawEllipse(center, 7, 7);
@@ -6300,13 +6328,13 @@ void CaptureEditor::paintEdit(QPainter &painter) {
                                            ? QStringLiteral("tool-rectangle")
                                            : button.action;
       drawToolbarIcon(painter, button.rect, icon, button.label,
-                      QColor(245, 245, 247));
+                      toolbarTheme.onSurface);
     }
   }
   if (textSizeMenuOpen_ && !colorPaletteOpen_ && !customColorPickerOpen_) {
     const QRectF panel = textSizePanelRect();
-    painter.setPen(QPen(QColor(255, 255, 255, 34), 1));
-    painter.setBrush(QColor(22, 22, 28, 248));
+    painter.setPen(QPen(withAlpha(toolbarTheme.onSurface, 34), 1));
+    painter.setBrush(withAlpha(toolbarTheme.surface, 248));
     painter.drawRoundedRect(panel, 9, 9);
     painter.setFont(chromeFont(11, true));
     for (int index = 0; index < 3; ++index) {
@@ -6314,10 +6342,10 @@ void CaptureEditor::paintEdit(QPainter &painter) {
                         panel.height());
       if (index == textSizeIndex_) {
         painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor(QStringLiteral("#0a84ff")));
+        painter.setBrush(toolbarTheme.accent);
         painter.drawRoundedRect(item.adjusted(3, 3, -3, -3), 7, 7);
       }
-      painter.setPen(QColor(QStringLiteral("#f5f5f7")));
+      painter.setPen(toolbarTheme.onSurface);
       painter.drawText(item, Qt::AlignCenter,
                        QString::fromLatin1(
                            kTextSizeNames.at(static_cast<std::size_t>(index))));

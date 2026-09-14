@@ -1,5 +1,6 @@
 /** @fileoverview Shared overlay chrome (see overlay-chrome.hpp). */
 #include "overlay-chrome.hpp"
+#include "theme-colors.hpp"
 
 #include <QFont>
 #include <QFontMetricsF>
@@ -68,13 +69,11 @@ QFont captureTabFont() {
   return font;
 }
 QColor captureTabAccent(CaptureKind kind) {
-  switch (kind) {
-  case CaptureKind::Fullscreen:
-    return QColor(QStringLiteral("#0a84ff"));
-  case CaptureKind::Region:
-    break;
-  }
-  return QColor(QStringLiteral("#30d158"));
+  Q_UNUSED(kind);
+  // One accent for the active tab, whatever the kind: the label names the
+  // mode, so color distinguishes state (active vs idle), not mode. Sourced
+  // from the Noctalia theme with a Niri focus-ring fallback.
+  return currentThemeColors().accent;
 }
 } // namespace
 
@@ -115,12 +114,13 @@ void drawCaptureTabs(QPainter &painter, const QVector<CaptureTab> &tabs,
                      CaptureKind active, const QPointF &cursor) {
   if (tabs.isEmpty())
     return;
+  const ThemeColors &theme = currentThemeColors();
   // Hangs off the top edge like a tab strip: square at the top (drawn past
   // the edge so only the bottom corners round), not a floating pill.
   const QRectF bar = tabs.constFirst().rect.united(tabs.constLast().rect)
                          .adjusted(-5, -30, 5, 5);
-  painter.setPen(QPen(QColor(255, 255, 255, 32), 1));
-  painter.setBrush(QColor(18, 18, 22, 235));
+  painter.setPen(QPen(withAlpha(theme.onSurface, 32), 1));
+  painter.setBrush(withAlpha(theme.surface, 235));
   painter.drawRoundedRect(bar, 12, 12);
   painter.setFont(captureTabFont());
   const int hovered = captureTabAt(tabs, cursor);
@@ -130,13 +130,13 @@ void drawCaptureTabs(QPainter &painter, const QVector<CaptureTab> &tabs,
     if (tab.kind == active) {
       painter.setBrush(captureTabAccent(tab.kind));
       painter.drawRoundedRect(tab.rect, 9, 9);
-      painter.setPen(QColor(18, 18, 22));
+      painter.setPen(theme.onAccent);
     } else {
       if (index == hovered) {
-        painter.setBrush(QColor(255, 255, 255, 28));
+        painter.setBrush(withAlpha(theme.onSurface, 28));
         painter.drawRoundedRect(tab.rect, 9, 9);
       }
-      painter.setPen(QColor(255, 255, 255, index == hovered ? 255 : 190));
+      painter.setPen(withAlpha(theme.onSurface, index == hovered ? 255 : 190));
     }
     painter.drawText(tab.rect, Qt::AlignCenter, captureTabLabel(tab.kind));
   }
@@ -153,8 +153,9 @@ QRectF drawModeBadge(QPainter &painter, const QRect &bounds,
   const int badgeWidth = painter.fontMetrics().horizontalAdvance(badge) + 24;
   const QRectF badgeRect((bounds.width() - badgeWidth) / 2.0, 12, badgeWidth,
                          32);
-  painter.setPen(QPen(QColor(255, 255, 255, 32), 1));
-  painter.setBrush(QColor(18, 18, 22, 235));
+  const ThemeColors &theme = currentThemeColors();
+  painter.setPen(QPen(withAlpha(theme.onSurface, 32), 1));
+  painter.setBrush(withAlpha(theme.surface, 235));
   painter.drawRoundedRect(badgeRect, 10, 10);
   painter.setPen(accent);
   painter.drawText(badgeRect, Qt::AlignCenter, badge);
@@ -190,10 +191,11 @@ void drawHotkeyLegend(QPainter &painter, const QRect &bounds,
   for (int index = 0; index < entries.size(); ++index) {
     const qreal y =
         bounds.height() - marginBottom - (index + 1) * rowHeight;
-    painter.setPen(QColor(169, 182, 203, 165));
+    const ThemeColors &theme = currentThemeColors();
+    painter.setPen(withAlpha(theme.onSurface, 165));
     painter.drawText(QRectF(marginLeft, y, keyWidth, rowHeight - 2),
                      Qt::AlignLeft | Qt::AlignVCenter, entries.at(index).first);
-    painter.setPen(QColor(199, 204, 214, 130));
+    painter.setPen(withAlpha(theme.onSurface, 130));
     painter.drawText(
         QRectF(marginLeft + keyWidth + keyGap, y,
                bounds.width() - marginLeft - keyWidth - keyGap - 14,
@@ -210,9 +212,10 @@ void drawStatusPill(QPainter &painter, const QRect &bounds,
   const int width = painter.fontMetrics().horizontalAdvance(text) + 28;
   const QRectF pill((bounds.width() - width) / 2.0, bounds.height() - 42.0,
                     width, 30);
-  painter.setPen(QPen(QColor(255, 255, 255, 32), 1));
-  painter.setBrush(QColor(18, 18, 22, 232));
+  const ThemeColors &theme = currentThemeColors();
+  painter.setPen(QPen(withAlpha(theme.onSurface, 32), 1));
+  painter.setBrush(withAlpha(theme.surface, 232));
   painter.drawRoundedRect(pill, 10, 10);
-  painter.setPen(Qt::white);
+  painter.setPen(theme.onSurface);
   painter.drawText(pill, Qt::AlignCenter, text);
 }

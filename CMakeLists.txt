@@ -56,6 +56,8 @@ add_library(nirisnap-core STATIC
   src/output-config.hpp
   src/overlay-chrome.cpp
   src/overlay-chrome.hpp
+  src/theme-colors.cpp
+  src/theme-colors.hpp
   src/eyedropper.cpp
   src/eyedropper.hpp
   src/surface-capture.cpp
@@ -146,6 +148,8 @@ qt_add_executable(nirisnap-smoke
   tests/cut-mapping-smoke.hpp
   tests/palette-config-smoke.cpp
   tests/palette-config-smoke.hpp
+  tests/theme-colors-smoke.cpp
+  tests/theme-colors-smoke.hpp
   tests/niri-ipc-smoke.cpp
   tests/niri-ipc-smoke.hpp
   src/cli-path.cpp
@@ -158,6 +162,8 @@ qt_add_executable(nirisnap-smoke
   src/niri-ipc.hpp
   src/overlay-chrome.cpp
   src/overlay-chrome.hpp
+  src/theme-colors.cpp
+  src/theme-colors.hpp
   tests/surface-capture-smoke.cpp
   tests/surface-capture-smoke.hpp
   tests/pin-lifecycle-smoke.cpp
