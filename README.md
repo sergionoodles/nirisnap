@@ -291,6 +291,12 @@ Install the corresponding Tesseract language data before adding a language to
 
 Tabs across the top of the overlay switch the capture kind: **Region**,
 **Fullscreen**. Region draws a freeform selection; Fullscreen acts at once.
+Beside them, an **Instant**/**Delayed** toggle says when the capture happens:
+Instant (the default) captures right away, while Delayed hides the overlay for
+a countdown — 3 s by default, tuned with the −/+ stepper or the `-`/`=`
+keys — so transient UI like menus and hovers can be arranged, then recaptures
+the screen fresh before committing the region or fullscreen. Pressing the
+hotkey again while hidden cancels via the single-instance handover.
 The tabs stay up in the editor too: a tab there drops the edit and goes back to
 capturing in that mode.
 
@@ -298,6 +304,8 @@ capturing in that mode.
 |---|---|
 | Drag | Select a region, with its native pixel size shown at the pointer |
 | `R` | Restore the last region drawn this session (same monitor) |
+| `D` | Toggle instant/delayed capture (top-bar toggle does the same) |
+| `-` / `=` | Shorten/lengthen the delay by 1 s (1–60 s; arms delayed capture) |
 | `Ctrl+A` | Select the full focused monitor (the Fullscreen tab) |
 | Hover the right-edge stack | Fan out the five most recent captures; click one to reopen it |
 | `Esc` | Dismiss (while selecting; in the editor, `Esc` returns to Select and a second `Esc` closes) |

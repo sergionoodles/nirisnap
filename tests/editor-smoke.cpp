@@ -7135,6 +7135,219 @@ bool runSelectTabsSmoke(QApplication &application, QString &error) {
   return true;
 }
 
+/** The instant/delayed toggle and its delay stepper: defaults, tuning, and
+ *  the hidden countdown that recaptures the screen fresh before committing.
+ */
+bool runDelayCaptureSmoke(QApplication &application, QString &error) {
+  const auto makeCapture = [] {
+    CaptureData capture;
+    capture.monitor.name = QStringLiteral("TEST");
+    capture.monitor.geometry = {0, 0, 800, 600};
+    capture.monitor.pixelSize = {800, 600};
+    capture.monitor.scale = 1.0;
+    capture.source = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    capture.source.fill(QColor(QStringLiteral("#182030")));
+    capture.previewSize = capture.source.size();
+    return capture;
+  };
+  const auto clickOn = [&](CaptureEditor &target, const QRectF &rect) {
+    if (rect.isNull())
+      return false;
+    const QPoint at = rect.center().toPoint();
+    QTest::mouseMove(&target, at);
+    QTest::mouseClick(&target, Qt::LeftButton, Qt::NoModifier, at);
+    application.processEvents();
+    return true;
+  };
+  const auto waitForSettled = [&](CaptureEditor &target) {
+    QElapsedTimer timer;
+    timer.start();
+    while (target.delayPendingForTest() && timer.elapsed() < 8000) {
+      application.processEvents(QEventLoop::ExcludeUserInputEvents);
+      QThread::yieldCurrentThread();
+    }
+    application.processEvents();
+    return !target.delayPendingForTest();
+  };
+
+  // Defaults: instant, 3 s, no stepper until delayed.
+  {
+    CaptureEditor editor(makeCapture());
+    editor.resize(800, 600);
+    editor.show();
+    application.processEvents();
+    if (editor.timingModeForTest() != CaptureTiming::Instant ||
+        editor.delaySecsForTest() != kCaptureDelayDefaultSecs) {
+      error = QStringLiteral("Delayed capture is not instant/3s by default");
+      return false;
+    }
+    if (editor.timingTabRectForTest(QStringLiteral("INSTANT")).isNull() ||
+        editor.timingTabRectForTest(QStringLiteral("DELAYED")).isNull()) {
+      error = QStringLiteral("INSTANT/DELAYED toggle is missing");
+      return false;
+    }
+    if (!editor.delayMinusRectForTest().isNull() ||
+        !editor.delayPlusRectForTest().isNull() ||
+        !editor.delayValueRectForTest().isNull()) {
+      error = QStringLiteral("Delay stepper shows while instant");
+      return false;
+    }
+    // The toggle arms the delay and reveals the stepper.
+    if (!clickOn(editor,
+                 editor.timingTabRectForTest(QStringLiteral("DELAYED"))) ||
+        editor.timingModeForTest() != CaptureTiming::Delayed) {
+      error = QStringLiteral("DELAYED toggle did not arm the delay");
+      return false;
+    }
+    if (editor.delayMinusRectForTest().isNull() ||
+        editor.delayPlusRectForTest().isNull() ||
+        editor.delayValueRectForTest().isNull()) {
+      error = QStringLiteral("Delay stepper is missing while delayed");
+      return false;
+    }
+    // −/+ tune one second at a time; the keyboard does the same.
+    if (!clickOn(editor, editor.delayPlusRectForTest()) ||
+        !clickOn(editor, editor.delayPlusRectForTest()) ||
+        editor.delaySecsForTest() != kCaptureDelayDefaultSecs + 2) {
+      error = QStringLiteral("Delay + did not add two seconds");
+      return false;
+    }
+    if (!clickOn(editor, editor.delayMinusRectForTest()) ||
+        editor.delaySecsForTest() != kCaptureDelayDefaultSecs + 1) {
+      error = QStringLiteral("Delay − did not remove one second");
+      return false;
+    }
+    for (int press = 0; press < 10; ++press)
+      QTest::keyClick(&editor, Qt::Key_Minus);
+    application.processEvents();
+    if (editor.delaySecsForTest() != kCaptureDelayMinSecs) {
+      error = QStringLiteral("Delay did not clamp at one second");
+      return false;
+    }
+    QTest::keyClick(&editor, Qt::Key_Equal);
+    application.processEvents();
+    if (editor.delaySecsForTest() != kCaptureDelayMinSecs + 1) {
+      error = QStringLiteral("Delay keyboard + did not add one second");
+      return false;
+    }
+    // D disarms back to instant and hides the stepper.
+    QTest::keyClick(&editor, Qt::Key_D);
+    application.processEvents();
+    if (editor.timingModeForTest() != CaptureTiming::Instant ||
+        !editor.delayMinusRectForTest().isNull()) {
+      error = QStringLiteral("D did not disarm the delay");
+      return false;
+    }
+    editor.close();
+  }
+
+  // A delayed region hides, recaptures fresh pixels, then edits them.
+  QTemporaryDir freshDir;
+  if (!freshDir.isValid()) {
+    error = QStringLiteral("Could not create delayed capture directory");
+    return false;
+  }
+  const QString freshPath =
+      QDir(freshDir.path()).filePath(QStringLiteral("fresh.png"));
+  {
+    QImage fresh(800, 600, QImage::Format_ARGB32_Premultiplied);
+    fresh.fill(QColor(QStringLiteral("#b03060")));
+    if (!fresh.save(freshPath, "PNG")) {
+      error = QStringLiteral("Could not create delayed capture source");
+      return false;
+    }
+  }
+  const QByteArray oldCapture = qgetenv("NIRISNAP_TEST_CAPTURE");
+  qputenv("NIRISNAP_TEST_CAPTURE", freshPath.toUtf8());
+  bool regionOk = false;
+  {
+    CaptureEditor editor(makeCapture());
+    editor.resize(800, 600);
+    editor.show();
+    application.processEvents();
+    if (!clickOn(editor,
+                 editor.timingTabRectForTest(QStringLiteral("DELAYED")))) {
+      error = QStringLiteral("DELAYED toggle missing before region delay");
+    } else {
+      QTest::mousePress(&editor, Qt::LeftButton, Qt::NoModifier,
+                        QPoint(100, 100));
+      QTest::mouseMove(&editor, QPoint(300, 250), 20);
+      QTest::mouseRelease(&editor, Qt::LeftButton, Qt::NoModifier,
+                          QPoint(300, 250));
+      application.processEvents();
+      if (!editor.delayPendingForTest() || !editor.isHidden()) {
+        error = QStringLiteral(
+            "Delayed region did not hide for the countdown");
+      } else {
+        editor.fireDelayedCaptureForTest();
+        if (!waitForSettled(editor)) {
+          error = QStringLiteral("Delayed region recapture did not settle");
+        } else if (!editor.editingForTest()) {
+          error = QStringLiteral("Delayed region did not reach the editor");
+        } else {
+          const QImage output = editor.renderCurrentOutput();
+          const QColor freshPixel(QStringLiteral("#b03060"));
+          const auto near = [](const QColor &actual, const QColor &wanted) {
+            return std::abs(actual.red() - wanted.red()) <= 12 &&
+                   std::abs(actual.green() - wanted.green()) <= 12 &&
+                   std::abs(actual.blue() - wanted.blue()) <= 12;
+          };
+          regionOk = editor.currentSelection().width() >= 190 &&
+                     editor.currentSelection().height() >= 140 &&
+                     !output.isNull() &&
+                     near(output.pixelColor(10, 10), freshPixel);
+          if (!regionOk)
+            error = QStringLiteral(
+                "Delayed region did not edit the recaptured screen");
+        }
+      }
+    }
+    editor.close();
+  }
+
+  // A delayed fullscreen commits the whole fresh output.
+  bool fullscreenOk = regionOk;
+  if (regionOk) {
+    CaptureEditor editor(makeCapture());
+    editor.resize(800, 600);
+    editor.show();
+    application.processEvents();
+    if (!clickOn(editor,
+                 editor.timingTabRectForTest(QStringLiteral("DELAYED")))) {
+      error = QStringLiteral("DELAYED toggle missing before fullscreen delay");
+      fullscreenOk = false;
+    } else {
+      const QRectF tab =
+          editor.selectTabRectForTest(QStringLiteral("FULLSCREEN"));
+      if (!clickOn(editor, tab)) {
+        error = QStringLiteral("Fullscreen tab missing while delayed");
+        fullscreenOk = false;
+      } else {
+        application.processEvents();
+        if (!editor.delayPendingForTest() || !editor.isHidden()) {
+          error = QStringLiteral(
+              "Delayed fullscreen did not hide for the countdown");
+          fullscreenOk = false;
+        } else {
+          editor.fireDelayedCaptureForTest();
+          if (!waitForSettled(editor) || !editor.editingForTest() ||
+              editor.renderCurrentOutput().size() != QSize(800, 600)) {
+            error = QStringLiteral(
+                "Delayed fullscreen did not capture the whole output");
+            fullscreenOk = false;
+          }
+        }
+      }
+    }
+    editor.close();
+  }
+  if (oldCapture.isEmpty())
+    qunsetenv("NIRISNAP_TEST_CAPTURE");
+  else
+    qputenv("NIRISNAP_TEST_CAPTURE", oldCapture);
+  return regionOk && fullscreenOk;
+}
+
 /** Checks that the wheel over a selected layer changes its weight, not its
  *  extent: a stroke gets heavier where it already is, and resizing stays with
  *  the corner handle. */
@@ -7567,6 +7780,10 @@ int main(int argc, char **argv) {
   if (!runSelectTabsSmoke(application, snapshotError)) {
     qWarning().noquote() << snapshotError;
     return 127;
+  }
+  if (!runDelayCaptureSmoke(application, snapshotError)) {
+    qWarning().noquote() << snapshotError;
+    return 129;
   }
   if (!runAsyncCaptureRegionSmoke(application, snapshotError)) {
     qWarning().noquote() << snapshotError;

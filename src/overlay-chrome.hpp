@@ -38,6 +38,52 @@ struct CaptureTab {
   CaptureKind kind;
   QRectF rect;
 };
+/// When the capture happens: right away, or after a countdown so transient
+/// UI (menus, hovers) can be arranged while the overlay is out of the way.
+/// Instant is the default and preserves the existing behavior.
+enum class CaptureTiming { Instant, Delayed };
+struct TimingTab {
+  CaptureTiming timing;
+  QRectF rect;
+};
+/// Bounds for the delay stepper, in seconds. The default 3 s matches the
+/// overlay's initial state; the editor clamps interactive edits into range.
+constexpr int kCaptureDelayDefaultSecs = 3;
+constexpr int kCaptureDelayMinSecs = 1;
+constexpr int kCaptureDelayMaxSecs = 60;
+[[nodiscard]] QString timingTabLabel(CaptureTiming timing);
+/// Which stepper button is under a point, if any.
+enum class DelayStepperButton { None, Minus, Plus };
+/// Every clickable rect of the select-phase top bar: the capture-kind tabs,
+/// the timing toggle, and (when delayed) the -/value/+ stepper. `barRect` is
+/// the background uniting them. In the edit phase only `kinds` is used.
+struct CaptureBarLayout {
+  QVector<CaptureTab> kinds;
+  QVector<TimingTab> timings;
+  QRectF minusRect;
+  QRectF valueRect;
+  QRectF plusRect;
+  QRectF barRect;
+};
+/// Bar positions for a surface of `bounds`. The stepper is present only when
+/// `timing` is Delayed; its value cell is measured at the widest supported
+/// value so tuning the seconds never shifts the bar.
+[[nodiscard]] CaptureBarLayout
+captureBarLayout(const QRect &bounds, CaptureTiming timing, int delaySecs);
+/// Index of the kind tab under `position`, or -1.
+[[nodiscard]] int captureBarKindAt(const CaptureBarLayout &bar,
+                                   const QPointF &position);
+/// Index of the timing tab under `position`, or -1.
+[[nodiscard]] int captureBarTimingAt(const CaptureBarLayout &bar,
+                                     const QPointF &position);
+/// Stepper button under `position`, or None.
+[[nodiscard]] DelayStepperButton
+captureBarStepperAt(const CaptureBarLayout &bar, const QPointF &position);
+/// Draws the whole strip; the active kind and timing are lit, the item under
+/// `cursor` is hinted.
+void drawCaptureBar(QPainter &painter, const CaptureBarLayout &bar,
+                    CaptureKind activeKind, CaptureTiming activeTiming,
+                    int delaySecs, const QPointF &cursor);
 /// Visible height of the tab strip's background, from the top edge (the
 /// strip is flush against it) to its rounded bottom — fixed regardless of
 /// window size, since only the horizontal layout changes with the surface.

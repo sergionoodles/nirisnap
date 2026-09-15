@@ -797,8 +797,7 @@ CaptureEditor::CaptureEditor(CaptureData capture, CaptureMode mode,
                   "crop"));
               break;
             case CaptureMode::Region:
-              setStatus(QStringLiteral(
-                  "Drag to select an area · fullscreen tab selects the whole output"));
+              setStatus(selectStatusText());
               break;
             case CaptureMode::File:
               break;
@@ -807,6 +806,15 @@ CaptureEditor::CaptureEditor(CaptureData capture, CaptureMode mode,
             update();
             emit captureReady(true, {});
           });
+
+  // A delayed selection counts down with the overlay hidden, then recaptures
+  // the screen fresh on the worker pool — never the UI thread — before the
+  // pending region or fullscreen commits against the new pixels.
+  delayTimer_.setSingleShot(true);
+  connect(&delayTimer_, &QTimer::timeout, this,
+          [this] { finishDelayedCapture(); });
+  connect(&delayWatcher_, &QFutureWatcher<CaptureJob>::finished, this,
+          [this] { completeDelayedRecapture(); });
 
   connect(&pinWatcher_, &QFutureWatcher<PinResult>::finished, this, [this] {
     pinPending_ = false;
@@ -2935,8 +2943,7 @@ void CaptureEditor::handleEscape() {
     }
     dragging_ = false;
     selection_ = {};
-    setStatus(QStringLiteral(
-        "Drag to select an area · fullscreen tab selects the whole output"));
+    setStatus(selectStatusText());
     updatePointerCursor();
     update();
     return;
@@ -3594,6 +3601,20 @@ void CaptureEditor::keyPressEvent(QKeyEvent *event) {
       }
       return;
     }
+    if (!dragging_ && event->key() == Qt::Key_D && !event->modifiers()) {
+      // D arms (or disarms) the delayed capture from the keyboard, the same
+      // as the top bar's INSTANT/DELAYED toggle.
+      setTimingMode(timingMode_ == CaptureTiming::Delayed
+                        ? CaptureTiming::Instant
+                        : CaptureTiming::Delayed);
+      return;
+    }
+    if (!dragging_ && !event->modifiers() &&
+        (event->key() == Qt::Key_Minus || event->key() == Qt::Key_Equal ||
+         event->key() == Qt::Key_Plus)) {
+      adjustDelay(event->key() == Qt::Key_Minus ? -1 : 1);
+      return;
+    }
     QWidget::keyPressEvent(event);
     return;
   }
@@ -3888,6 +3909,13 @@ QRegion CaptureEditor::pointerMotionRegion(const QPointF &point) const {
       add(tab.rect.adjusted(-4, -4, 4, 4));
       break;
     }
+  }
+  // The timing toggle and stepper share the bar: any hover inside repaints
+  // it, which is one small strip beside a 6K surface.
+  if (phase_ == Phase::Select) {
+    const CaptureBarLayout bar = selectBarItems();
+    if (!bar.barRect.isEmpty() && bar.barRect.contains(point))
+      add(bar.barRect.adjusted(-2, -2, 2, 2));
   }
 
   if (phase_ == Phase::Select) {
@@ -4399,6 +4427,18 @@ void CaptureEditor::mousePressEvent(QMouseEvent *event) {
     return;
   cursor_ = event->position();
   endNudgeRun();
+  if (phase_ == Phase::Select) {
+    const CaptureBarLayout bar = selectBarItems();
+    const DelayStepperButton stepper = captureBarStepperAt(bar, cursor_);
+    if (stepper != DelayStepperButton::None) {
+      adjustDelay(stepper == DelayStepperButton::Minus ? -1 : 1);
+      return;
+    }
+    if (const int timing = captureBarTimingAt(bar, cursor_); timing >= 0) {
+      setTimingMode(bar.timings.at(timing).timing);
+      return;
+    }
+  }
   if (const int tab = selectTabAt(cursor_); tab >= 0) {
     if (phase_ == Phase::Edit && textEditing())
       acceptText();
@@ -5148,8 +5188,10 @@ void CaptureEditor::updatePointerCursor() {
   }
   if (phase_ == Phase::Select) {
     clearHighlighterPreview();
-    applyCursor(selectTabAt(cursor_) >= 0 ||
-                        (recentsOpen_ && recentAt(cursor_) >= 0)
+    const bool overBar = selectTabAt(cursor_) >= 0 ||
+                         selectTimingAt(cursor_) >= 0 ||
+                         selectStepperAt(cursor_) != DelayStepperButton::None;
+    applyCursor(overBar || (recentsOpen_ && recentAt(cursor_) >= 0)
                     ? Qt::PointingHandCursor
                 : recentsOpen_ ? Qt::ArrowCursor
                                : Qt::CrossCursor);
@@ -5295,11 +5337,184 @@ QVector<CaptureTab> CaptureEditor::selectTabItems() const {
   // to the select phase in that mode. A file has no screen to go back to.
   if (capture_.source.isNull() || (phase_ == Phase::Edit && !hasLiveScreen()))
     return {};
+  // In the select phase the kind tabs live inside the wider bar (with the
+  // timing toggle), so hand out those rects: clicks land where they are drawn.
+  if (phase_ == Phase::Select)
+    return selectBarItems().kinds;
   return captureTabLayout(rect());
+}
+
+CaptureBarLayout CaptureEditor::selectBarItems() const {
+  if (capture_.source.isNull() || (phase_ == Phase::Edit && !hasLiveScreen()))
+    return {};
+  if (phase_ != Phase::Select)
+    return {};
+  return captureBarLayout(rect(), timingMode_, delaySecs_);
 }
 
 int CaptureEditor::selectTabAt(const QPointF &position) const {
   return captureTabAt(selectTabItems(), position);
+}
+
+int CaptureEditor::selectTimingAt(const QPointF &position) const {
+  if (phase_ != Phase::Select)
+    return -1;
+  return captureBarTimingAt(selectBarItems(), position);
+}
+
+DelayStepperButton
+CaptureEditor::selectStepperAt(const QPointF &position) const {
+  if (phase_ != Phase::Select)
+    return DelayStepperButton::None;
+  return captureBarStepperAt(selectBarItems(), position);
+}
+
+QString CaptureEditor::selectStatusText() const {
+  if (timingMode_ == CaptureTiming::Delayed)
+    return QStringLiteral(
+               "Drag to select an area · fullscreen tab selects the whole "
+               "output · capturing %1s after selection")
+        .arg(delaySecs_);
+  return QStringLiteral(
+      "Drag to select an area · fullscreen tab selects the whole output");
+}
+
+void CaptureEditor::setTimingMode(CaptureTiming timing) {
+  if (phase_ != Phase::Select || timingMode_ == timing)
+    return;
+  timingMode_ = timing;
+  if (timing == CaptureTiming::Delayed)
+    setStatus(QStringLiteral(
+                  "Delayed capture · %1s · −/+ tunes · draw a region or take "
+                  "fullscreen, then arrange windows while hidden")
+                  .arg(delaySecs_));
+  else
+    setStatus(selectStatusText());
+  updatePointerCursor();
+  update();
+}
+
+void CaptureEditor::adjustDelay(int step) {
+  if (phase_ != Phase::Select)
+    return;
+  const int next =
+      std::clamp(delaySecs_ + step, kCaptureDelayMinSecs, kCaptureDelayMaxSecs);
+  timingMode_ = CaptureTiming::Delayed;
+  if (next == delaySecs_) {
+    setStatus(QStringLiteral("Delayed capture · %1s already").arg(delaySecs_));
+    update();
+    return;
+  }
+  delaySecs_ = next;
+  setStatus(QStringLiteral("Delayed capture · %1s · draw a region or take "
+                           "fullscreen")
+                .arg(delaySecs_));
+  updatePointerCursor();
+  update();
+}
+
+void CaptureEditor::startDelayedCapture(const QRectF &region, bool fullscreen,
+                                        QString editStatus) {
+  // No live screen (a handed image) or no pixels yet: there is nothing fresh
+  // to wait for, so commit right away instead of hiding.
+  if (!hasLiveScreen() || capture_.source.isNull() || delayCounting_) {
+    if (fullscreen) {
+      selection_ = QRectF(QPointF(), capture_.previewSize);
+      editedKind_ = SelectTab::Fullscreen;
+    } else {
+      selection_ = region;
+      editedKind_ = SelectTab::Region;
+    }
+    enterSelectedCapture(editStatus);
+    return;
+  }
+  pendingDelayedRegion_ = region;
+  pendingDelayedFullscreen_ = fullscreen;
+  pendingDelayedStatus_ = std::move(editStatus);
+  delayCounting_ = true;
+  dragging_ = false;
+  hide();
+  delayTimer_.start(delaySecs_ * 1000);
+}
+
+void CaptureEditor::finishDelayedCapture() {
+  if (!delayCounting_ || delayRecaptureBusy_)
+    return;
+  delayRecaptureBusy_ = true;
+  // The overlay stays hidden while the compositor composes a frame without
+  // it; the grab waits for that frame on the worker pool.
+  const MonitorInfo monitor = liveMonitor_;
+  delayWatcher_.setFuture(QtConcurrent::run([monitor] {
+    CaptureJob job;
+    job.capture.monitor = monitor;
+    job.ok = captureMonitorPixels(monitor, job.capture, true, job.error);
+    return job;
+  }));
+}
+
+void CaptureEditor::completeDelayedRecapture() {
+  delayRecaptureBusy_ = false;
+  if (!delayCounting_)
+    return;
+  const CaptureJob job = delayWatcher_.result();
+  const bool fullscreen = pendingDelayedFullscreen_;
+  const QString status = pendingDelayedStatus_;
+  const QRectF region = pendingDelayedRegion_;
+  if (!job.ok) {
+    delayCounting_ = false;
+    pendingDelayedRegion_ = {};
+    pendingDelayedFullscreen_ = false;
+    pendingDelayedStatus_.clear();
+    show();
+    setFocus(Qt::ActiveWindowFocusReason);
+    setStatus(job.error.isEmpty()
+                  ? QStringLiteral("Delayed capture failed · try again")
+                  : QStringLiteral("Delayed capture failed: %1").arg(job.error));
+    updatePointerCursor();
+    update();
+    return;
+  }
+  capture_ = job.capture;
+  liveMonitor_ = capture_.monitor;
+  pristineSource_ = capture_.source;
+  pristineLogicalSize_ = capture_.previewSize;
+  cuts_.clear();
+  redactionBaseStale_ = true;
+  backdropKey_ = 0;
+  delayCounting_ = false;
+  pendingDelayedRegion_ = {};
+  pendingDelayedFullscreen_ = false;
+  pendingDelayedStatus_.clear();
+  show();
+  setFocus(Qt::ActiveWindowFocusReason);
+  if (fullscreen) {
+    selection_ = QRectF(QPointF(), capture_.previewSize);
+    editedKind_ = SelectTab::Fullscreen;
+    enterSelectedCapture(status);
+  } else {
+    // The window never resized while hidden, so the pending widget-space
+    // region still addresses the fresh frame; clamp it onto the surface.
+    const QRectF clamped = region.intersected(QRectF(QPointF(), QSizeF(size())));
+    if (clamped.width() < 2 || clamped.height() < 2) {
+      selection_ = {};
+      setStatus(selectStatusText());
+      updatePointerCursor();
+      update();
+      return;
+    }
+    selection_ = clamped;
+    editedKind_ = SelectTab::Region;
+    enterSelectedCapture(status);
+  }
+  updatePointerCursor();
+  update();
+}
+
+void CaptureEditor::fireDelayedCaptureForTest() {
+  if (!delayCounting_ || delayRecaptureBusy_)
+    return;
+  delayTimer_.stop();
+  finishDelayedCapture();
 }
 
 void CaptureEditor::activateSelectTab(SelectTab tab) {
@@ -5310,8 +5525,7 @@ void CaptureEditor::activateSelectTab(SelectTab tab) {
   case SelectTab::Region:
     dragging_ = false;
     selection_ = {};
-    setStatus(QStringLiteral("Drag to select an area · fullscreen tab selects "
-                             "the whole output"));
+    setStatus(selectStatusText());
     updatePointerCursor();
     update();
     break;
@@ -5331,6 +5545,13 @@ bool CaptureEditor::hasLiveScreen() const {
 
 void CaptureEditor::commitRegion(const QRectF &region,
                                  const QString &editStatus) {
+  if (phase_ == Phase::Select && timingMode_ == CaptureTiming::Delayed &&
+      !delayCounting_) {
+    selection_ = region;
+    editedKind_ = SelectTab::Region;
+    startDelayedCapture(region, false, editStatus);
+    return;
+  }
   selection_ = region;
   editedKind_ = SelectTab::Region;
   enterSelectedCapture(editStatus);
@@ -5379,6 +5600,14 @@ void CaptureEditor::adoptImage(QImage image, OperationLog log, SelectTab kind,
 }
 
 void CaptureEditor::returnToSelect() {
+  delayTimer_.stop();
+  delayCounting_ = false;
+  delayRecaptureBusy_ = false;
+  pendingDelayedRegion_ = {};
+  pendingDelayedFullscreen_ = false;
+  pendingDelayedStatus_.clear();
+  if (!isVisible())
+    show();
   if (textEditing()) {
     textEditor_->clear();
     textEditor_->hide();
@@ -5416,8 +5645,7 @@ void CaptureEditor::returnToSelect() {
   selection_ = {};
   redactionBaseStale_ = true;
   scheduleSnapshot();
-  setStatus(QStringLiteral(
-      "Drag to select an area · fullscreen tab selects the whole output"));
+  setStatus(selectStatusText());
   updatePointerCursor();
   update();
 }
@@ -5682,6 +5910,13 @@ void CaptureEditor::completeReopenRecent(const ReopenResult &result) {
 }
 
 void CaptureEditor::selectFullscreen() {
+  if (phase_ == Phase::Select && timingMode_ == CaptureTiming::Delayed &&
+      !delayCounting_) {
+    startDelayedCapture({}, true,
+                        QStringLiteral("Full screen selected · native "
+                                       "resolution · outer handles crop"));
+    return;
+  }
   dragging_ = false;
   selection_ = QRectF(QPointF(), capture_.previewSize);
   editedKind_ = SelectTab::Fullscreen;
@@ -5691,11 +5926,18 @@ void CaptureEditor::selectFullscreen() {
 }
 
 void CaptureEditor::paintSelectTabs(QPainter &painter) {
-  // In the select phase the lit one is the mode the pointer is in; in the
-  // edit phase it is how this capture was taken.
-  const CaptureKind active =
-      phase_ == Phase::Edit ? editedKind_ : selectKind();
-  drawCaptureTabs(painter, selectTabItems(), active, cursor_);
+  if (phase_ == Phase::Edit) {
+    // In the edit phase the strip stays as the way back, without timing: the
+    // capture already happened.
+    drawCaptureTabs(painter, selectTabItems(), editedKind_, cursor_);
+    return;
+  }
+  // In the select phase the lit kind is the mode the pointer is in; the
+  // timing toggle beside it says when the next selection captures.
+  const CaptureBarLayout bar = selectBarItems();
+  if (bar.kinds.isEmpty())
+    return;
+  drawCaptureBar(painter, bar, selectKind(), timingMode_, delaySecs_, cursor_);
 }
 
 void CaptureEditor::paintSelect(QPainter &painter) {
@@ -5717,6 +5959,7 @@ void CaptureEditor::paintSelect(QPainter &painter) {
                      {{QStringLiteral("Drag"), QStringLiteral("Area")},
                       {QStringLiteral("Ctrl+A"), QStringLiteral("Fullscreen")},
                       {QStringLiteral("R"), QStringLiteral("Last region")},
+                      {QStringLiteral("D"), QStringLiteral("Instant/delayed")},
                       {QStringLiteral("Esc"), QStringLiteral("Close")}});
 
   const bool haveHole = !selection_.isEmpty();

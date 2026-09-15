@@ -359,6 +359,33 @@ public:
         return item.rect;
     return {};
   }
+  /// Timing toggle tab rect ("INSTANT"/"DELAYED"), or null. Test accessor.
+  [[nodiscard]] QRectF timingTabRectForTest(const QString &label) const {
+    for (const TimingTab &item : selectBarItems().timings)
+      if (timingTabLabel(item.timing) == label)
+        return item.rect;
+    return {};
+  }
+  [[nodiscard]] QRectF delayMinusRectForTest() const {
+    return selectBarItems().minusRect;
+  }
+  [[nodiscard]] QRectF delayPlusRectForTest() const {
+    return selectBarItems().plusRect;
+  }
+  [[nodiscard]] QRectF delayValueRectForTest() const {
+    return selectBarItems().valueRect;
+  }
+  /// Armed capture timing. Test accessor.
+  [[nodiscard]] CaptureTiming timingModeForTest() const { return timingMode_; }
+  /// Delay countdown length, seconds. Test accessor.
+  [[nodiscard]] int delaySecsForTest() const { return delaySecs_; }
+  /// Whether a delayed capture is counting down or recapturing. Test accessor.
+  [[nodiscard]] bool delayPendingForTest() const {
+    return delayCounting_ || delayRecaptureBusy_;
+  }
+  /// Fires the pending delayed capture without waiting out the countdown.
+  /// Test hook: the headless suite cannot wait on wall-clock timers.
+  void fireDelayedCaptureForTest();
   [[nodiscard]] bool textSizeMenuOpenForTest() const { return textSizeMenuOpen_; }
 
 private:
@@ -457,8 +484,28 @@ private:
   /// mode; Fullscreen acts at once.
   using SelectTab = CaptureKind;
   [[nodiscard]] QVector<CaptureTab> selectTabItems() const;
+  /// The whole select-phase top bar: kind tabs, the instant/delayed toggle,
+  /// and the delay stepper while delayed. Empty when no tabs are offered.
+  [[nodiscard]] CaptureBarLayout selectBarItems() const;
   [[nodiscard]] int selectTabAt(const QPointF &position) const;
+  [[nodiscard]] int selectTimingAt(const QPointF &position) const;
+  [[nodiscard]] DelayStepperButton selectStepperAt(const QPointF &position) const;
   void activateSelectTab(SelectTab tab);
+  /// Arms instant or delayed capture; delayed selections count down with the
+  /// overlay hidden, then recapture the screen fresh before committing.
+  void setTimingMode(CaptureTiming timing);
+  /// Steps the delay countdown length, clamped to the supported range.
+  void adjustDelay(int step);
+  /// Status line for the select phase, naming the armed timing.
+  [[nodiscard]] QString selectStatusText() const;
+  /// Starts the hidden countdown for a region/fullscreen selection made
+  /// while delayed; the overlay returns on fresh pixels when it lands.
+  void startDelayedCapture(const QRectF &region, bool fullscreen,
+                           QString editStatus);
+  /// The countdown elapsed: stay hidden and recapture the screen on the
+  /// worker pool (never the UI thread).
+  void finishDelayedCapture();
+  void completeDelayedRecapture();
   void selectFullscreen();
   /// Back from the editor to the select phase: the op log is dropped and the
   /// frozen screen is offered again for a new region.
@@ -580,6 +627,18 @@ private:
   CaptureMode captureMode_ = CaptureMode::Region;
   /// Which tab produced the capture being edited; lit in the edit phase.
   SelectTab editedKind_ = SelectTab::Region;
+  /// When the next selection captures: instantly, or after a countdown with
+  /// the overlay hidden so transient UI can be arranged. Session state, not
+  /// configuration: every launch starts instant with a 3 s delay.
+  CaptureTiming timingMode_ = CaptureTiming::Instant;
+  int delaySecs_ = kCaptureDelayDefaultSecs;
+  /// A delayed selection is counting down (overlay hidden) or recapturing.
+  bool delayCounting_ = false;
+  bool delayRecaptureBusy_ = false;
+  QRectF pendingDelayedRegion_;
+  bool pendingDelayedFullscreen_ = false;
+  QString pendingDelayedStatus_;
+  QTimer delayTimer_;
   std::optional<RecentSnap> editingRecent_;
   QVector<RecentSnap> recents_;
   QFutureWatcher<QVector<RecentSnap>> recentsWatcher_;
@@ -720,6 +779,7 @@ private:
   QFutureWatcher<CaptureJob> captureWatcher_;
   bool capturePending_ = false;
   bool captureStarted_ = false;
+  QFutureWatcher<CaptureJob> delayWatcher_;
   bool firstPaintReported_ = false;
   CaptureMode pendingMode_ = CaptureMode::Region;
   // Background render for --pin.
