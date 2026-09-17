@@ -1,6 +1,6 @@
 # Maintainer: Sergio <sergionoodles>
 pkgname=nirisnap
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc='Native Wayland screenshot and annotation overlay for Niri'
 arch=('x86_64')
@@ -15,7 +15,7 @@ optdepends=(
 )
 # After tagging v$pkgver upstream, refresh with: updpkgsums && makepkg --printsrcinfo > .SRCINFO
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('69988484d81e253f3920d5e0cab1ce0e6046520c666a01bdb69109979b705fd6')
+sha256sums=('b13523fe7664e62e6440aebe94a3ef8536ab85fa36595095097c6b476b7d214a')
 
 build() {
   cmake -S "$pkgname-$pkgver" -B build -G Ninja \
